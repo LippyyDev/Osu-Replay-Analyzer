@@ -16,7 +16,7 @@ interface GeneralInfoProps {
 
 // ─── Game mode name ────────────────────────────────────────────────────────────
 const GAME_MODE_NAMES: Record<number, string> = {
-  0: 'Standard', 1: 'Taiko', 2: 'Catch', 3: 'Mania',
+  0: 'STANDARD', 1: 'TAIKO', 2: 'CATCH', 3: 'MANIA',
 };
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
@@ -30,12 +30,14 @@ function StatRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2.5 border-b border-white/[0.04] last:border-0">
-      <div className="flex items-center gap-2 text-white/35 text-xs min-w-0">
-        <span className="shrink-0">{icon}</span>
+    <div className="flex items-center justify-between gap-3 py-3 border-b-[3px] border-black last:border-0">
+      <div className="flex items-center gap-2 text-black/70 text-xs min-w-0 font-bold uppercase">
+        <div className="bg-[var(--color-neo-bg)] brutal-border p-1">
+          <span className="shrink-0">{icon}</span>
+        </div>
         <span>{label}</span>
       </div>
-      <span className={`text-white/85 text-sm font-semibold truncate text-right ${mono ? 'font-mono text-xs' : ''}`}>
+      <span className={`text-black text-sm font-black truncate text-right ${mono ? 'font-mono text-xs bg-[var(--color-neo-yellow)] px-2 brutal-border shadow-[2px_2px_0_0_#000]' : ''}`}>
         {value}
       </span>
     </div>
@@ -49,70 +51,33 @@ function StatChip({ label, value, color = 'default', icon }: {
   color?: 'default' | 'pink' | 'yellow' | 'blue' | 'green' | 'red';
 }) {
   const colorCls = {
-    default: 'bg-white/[0.04] border-white/[0.06]',
-    pink:    'bg-pink-500/10 border-pink-500/20',
-    yellow:  'bg-yellow-500/10 border-yellow-500/20',
-    blue:    'bg-blue-500/10 border-blue-500/20',
-    green:   'bg-green-500/10 border-green-500/20',
-    red:     'bg-red-500/10 border-red-500/20',
-  }[color];
-  const textCls = {
-    default: 'text-white',
-    pink:    'text-pink-300',
-    yellow:  'text-yellow-300',
-    blue:    'text-blue-300',
-    green:   'text-green-300',
-    red:     'text-red-300',
-  }[color];
-  const labelCls = {
-    default: 'text-white/30',
-    pink:    'text-pink-400/60',
-    yellow:  'text-yellow-400/60',
-    blue:    'text-blue-400/60',
-    green:   'text-green-400/60',
-    red:     'text-red-400/60',
+    default: 'bg-white text-black',
+    pink:    'bg-[var(--color-neo-pink)] text-white',
+    yellow:  'bg-[var(--color-neo-yellow)] text-black',
+    blue:    'bg-[var(--color-neo-blue)] text-white',
+    green:   'bg-[var(--color-neo-green)] text-black',
+    red:     'bg-[var(--color-neo-red)] text-white',
   }[color];
 
   return (
-    <div className={`flex flex-col gap-1.5 px-3.5 py-3 rounded-xl border ${colorCls}`}>
-      <div className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold ${labelCls}`}>
-        {icon}
-        {label}
+    <div className={`flex flex-col gap-2 p-3 brutal-border shadow-[4px_4px_0_0_#000] font-mono ${colorCls}`}>
+      <div className={`flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest`}>
+        <div className="bg-white text-black brutal-border p-0.5">
+          {icon}
+        </div>
+        [{label}]
       </div>
-      <p className={`text-sm font-bold ${textCls}`}>{value}</p>
+      <p className={`text-xl font-black`}>{value}</p>
     </div>
   );
 }
 
 function ModBadge({ mod }: { mod: string }) {
-  const cls: Record<string, string> = {
-    NF: 'bg-slate-500/20 text-slate-300 border-slate-500/30',
-    EZ: 'bg-green-500/20 text-green-300 border-green-500/30',
-    HD: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-    HR: 'bg-red-500/20 text-red-300 border-red-500/30',
-    DT: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    HT: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
-    FL: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    RX: 'bg-pink-500/20 text-pink-300 border-pink-500/30',
-    AP: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-    NoMod: 'bg-white/5 text-white/40 border-white/10',
-  };
   return (
-    <span className={`px-2.5 py-0.5 rounded-lg text-xs font-bold border ${cls[mod] ?? 'bg-white/5 text-white/40 border-white/10'}`}>
-      {mod}
+    <span className="px-2 py-0.5 text-xs font-bold font-mono brutal-border bg-[var(--color-neo-yellow)] text-black shadow-[2px_2px_0_0_#000]">
+      +{mod}
     </span>
   );
-}
-
-// ─── Country code → flag emoji ────────────────────────────────────────────────
-
-function countryToFlag(code: string): string {
-  // Regional Indicator Symbol letters: A = U+1F1E6, offset from 'A' (65) = 127397
-  return code
-    .toUpperCase()
-    .split('')
-    .map((ch) => String.fromCodePoint(ch.charCodeAt(0) + 127397))
-    .join('');
 }
 
 // ─── Hero Banner ───────────────────────────────────────────────────────────────────────────
@@ -130,7 +95,6 @@ function HeroBanner({
   const [coverError, setCoverError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
-  // osu! CDN cover.jpg = 900×250 — matches the requested 900×250 size
   const cover2x = `https://assets.ppy.sh/beatmaps/${beatmapSetId}/covers/cover@2x.jpg`;
   const cover1x = `https://assets.ppy.sh/beatmaps/${beatmapSetId}/covers/cover.jpg`;
 
@@ -145,14 +109,14 @@ function HeroBanner({
   const countryDisplay = userProfile?.countryName || userProfile?.countryCode || null;
 
   return (
-    <div className="relative w-full overflow-hidden" style={{ height: 250 }}>
+    <div className="relative w-full overflow-hidden brutal-border border-b-0" style={{ height: 250 }}>
 
       {/* Skeleton */}
       {!coverLoaded && (
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-[#1a1025] to-[#0d1a2e]" />
+        <div className="absolute inset-0 bg-[var(--color-neo-bg)]" />
       )}
 
-      {/* Cover image — 900×250, fills container edge-to-edge */}
+      {/* Cover image */}
       {!coverError && (
         <img
           src={imgSrc}
@@ -160,82 +124,65 @@ function HeroBanner({
           onLoad={() => setCoverLoaded(true)}
           onError={handleImgError}
           className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-700 ${
-            coverLoaded ? 'opacity-100' : 'opacity-0'
+            coverLoaded ? 'opacity-100 grayscale-[20%]' : 'opacity-0'
           }`}
-          style={{ filter: 'brightness(0.65)' }}
+          style={{ filter: 'brightness(0.8) contrast(1.2)' }}
         />
       )}
 
-      {/* Left gradient for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/20 to-transparent pointer-events-none" />
-      {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#13131a]/85 to-transparent pointer-events-none" />
+      {/* Brutalist overlay grid */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPjxyZWN0IHdpZHRoPSI0IiBoZWlnaHQ9IjQiIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSIvPjwvc3ZnPg==')] pointer-events-none mix-blend-overlay" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none" />
 
-      {/* User info — bottom-left */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 px-6 pb-4 flex items-end gap-4">
-
+      {/* User info */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 px-6 pb-6 flex items-end gap-6 font-mono">
         {/* Avatar */}
         {userProfile?.avatarUrl && !avatarError ? (
-          <div className="shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 border-white/25 shadow-2xl">
+          <div className="shrink-0 w-20 h-20 bg-[var(--color-neo-pink)] brutal-border shadow-[4px_4px_0_0_#000] p-1">
             <img
               src={userProfile.avatarUrl}
               alt={userProfile.username}
               onError={() => setAvatarError(true)}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover grayscale-[30%] contrast-125"
             />
           </div>
         ) : (
-          <div className="shrink-0 w-14 h-14 rounded-xl bg-white/10 border-2 border-white/15 flex items-center justify-center">
-            <User className="w-6 h-6 text-white/60" />
+          <div className="shrink-0 w-20 h-20 bg-[var(--color-neo-pink)] brutal-border shadow-[4px_4px_0_0_#000] flex items-center justify-center">
+            <User className="w-10 h-10 text-white" />
           </div>
         )}
 
-        <div className="flex-1 min-w-0">
-          {/* Name + country full name */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-lg font-black text-white drop-shadow-lg leading-none">
+        <div className="flex-1 min-w-0 pb-1">
+          <div className="flex items-center gap-3 flex-wrap bg-white w-fit px-3 py-1 brutal-border shadow-[2px_2px_0_0_#000] mb-2">
+            <h3 className="text-2xl font-black text-black leading-none uppercase tracking-tight">
               {replayInfo.playerName}
             </h3>
             {countryDisplay && (
-              <span className="text-xs font-semibold text-white/60 drop-shadow">
-                {countryDisplay}
+              <span className="text-sm font-bold text-black/60 uppercase">
+                [{countryDisplay}]
               </span>
             )}
           </div>
 
           {/* Stats */}
           {userProfile && (
-            <div className="flex items-center gap-3 mt-1 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {userProfile.globalRank != null && (
-                <div className="flex items-center gap-1">
-                  <span className="text-white/45 text-[10px]">Global</span>
-                  <span className="text-yellow-300 text-xs font-bold drop-shadow">#{userProfile.globalRank.toLocaleString()}</span>
+                <div className="bg-[var(--color-neo-yellow)] brutal-border px-2 py-0.5 shadow-[2px_2px_0_0_#000] text-xs font-bold text-black flex gap-1 items-center uppercase">
+                  <span>GLB</span>
+                  <span className="font-black">#{userProfile.globalRank.toLocaleString()}</span>
                 </div>
               )}
               {userProfile.countryRank != null && countryDisplay && (
-                <div className="flex items-center gap-1">
-                  <span className="text-white/45 text-[10px]">{countryDisplay}</span>
-                  <span className="text-pink-300 text-xs font-bold drop-shadow">#{userProfile.countryRank.toLocaleString()}</span>
+                <div className="bg-[var(--color-neo-bg)] brutal-border px-2 py-0.5 shadow-[2px_2px_0_0_#000] text-xs font-bold text-black flex gap-1 items-center uppercase">
+                  <span>{countryDisplay}</span>
+                  <span className="font-black">#{userProfile.countryRank.toLocaleString()}</span>
                 </div>
               )}
               {userProfile.pp != null && (
-                <div className="flex items-center gap-1">
-                  <span className="text-white/45 text-[10px]">pp</span>
-                  <span className="text-blue-300 text-xs font-bold drop-shadow">
-                    {userProfile.pp.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-              )}
-              {userProfile.accuracy != null && (
-                <div className="flex items-center gap-1">
-                  <span className="text-white/45 text-[10px]">Acc</span>
-                  <span className="text-green-300 text-xs font-bold drop-shadow">{userProfile.accuracy.toFixed(2)}%</span>
-                </div>
-              )}
-              {userProfile.level != null && (
-                <div className="flex items-center gap-1">
-                  <span className="text-white/45 text-[10px]">Lv</span>
-                  <span className="text-purple-300 text-xs font-bold drop-shadow">{userProfile.level}</span>
+                <div className="bg-[var(--color-neo-blue)] text-white brutal-border px-2 py-0.5 shadow-[2px_2px_0_0_#000] text-xs font-bold flex gap-1 items-center uppercase">
+                  <span>PP</span>
+                  <span className="font-black">{userProfile.pp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
               )}
             </div>
@@ -259,17 +206,17 @@ export default function GeneralInfo({ replayInfo, beatmapInfo, computed, userPro
       : 0;
 
   const mods       = modNames(replayInfo.mods);
-  const gameMode   = GAME_MODE_NAMES[replayInfo.gameMode] ?? `Mode ${replayInfo.gameMode}`;
+  const gameMode   = GAME_MODE_NAMES[replayInfo.gameMode] ?? `MODE_${replayInfo.gameMode}`;
   const replayId   = replayInfo.onlineScoreId > 0n
     ? replayInfo.onlineScoreId.toString()
-    : 'N/A (local)';
+    : 'N/A (LOCAL)';
   const hasDTSpeed = (replayInfo.mods & (64 | 512)) !== 0;
   const hasHTSpeed = (replayInfo.mods & 256) !== 0;
-  const speedLabel = hasDTSpeed ? ' (DT÷1.5)' : hasHTSpeed ? ' (HT÷0.75)' : '';
+  const speedLabel = hasDTSpeed ? ' (DT)' : hasHTSpeed ? ' (HT)' : '';
   const totalObjects = computed.beatmapCircles + computed.beatmapSliders + computed.beatmapSpinners;
 
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-[#13131a] overflow-hidden">
+    <div className="brutal-card bg-white overflow-hidden font-mono">
 
       {/* ── Hero Banner (Cover + User) ── */}
       <HeroBanner
@@ -279,47 +226,52 @@ export default function GeneralInfo({ replayInfo, beatmapInfo, computed, userPro
       />
 
       {/* ── Title header ── */}
-      <div className="px-6 py-4 border-b border-white/[0.04] flex items-start justify-between gap-4">
+      <div className="px-6 py-6 border-b-[3px] border-black flex items-start justify-between gap-4 bg-[var(--color-neo-bg)]">
         <div className="min-w-0">
-          <p className="text-[10px] text-pink-400/70 font-semibold uppercase tracking-widest mb-1.5">
-            General Information
+          <p className="text-[10px] bg-black text-white px-2 py-0.5 w-fit font-bold uppercase tracking-widest mb-3">
+            GENERAL INFORMATION
           </p>
-          <h3 className="text-xl font-black text-white leading-tight truncate">
-            {beatmapInfo.artist} — {beatmapInfo.title}
+          <h3 className="text-2xl sm:text-3xl font-black text-black leading-tight uppercase">
+            {beatmapInfo.artist} <span className="text-[var(--color-neo-pink)]">—</span> {beatmapInfo.title}
           </h3>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-white/40 text-sm">[{beatmapInfo.version}]</span>
-            <span className="text-white/20">·</span>
-            <span className="text-yellow-400 text-sm font-bold">{beatmapInfo.starRating.toFixed(2)}★</span>
-            <span className="text-white/20">·</span>
-            <span className="text-white/30 text-sm">{totalObjects} objects</span>
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
+            <span className="text-black font-bold bg-white brutal-border px-2 py-0.5 shadow-[2px_2px_0_0_#000]">
+              [{beatmapInfo.version}]
+            </span>
+            <span className="text-white bg-black brutal-border px-2 py-0.5 font-bold shadow-[2px_2px_0_0_#000]">
+              {beatmapInfo.starRating.toFixed(2)}★
+            </span>
+            <span className="text-black font-bold uppercase bg-[var(--color-neo-yellow)] brutal-border px-2 py-0.5 shadow-[2px_2px_0_0_#000]">
+              {totalObjects} OBJ
+            </span>
           </div>
         </div>
-        <div className="shrink-0 text-right hidden sm:block">
-          <div className="text-yellow-400 font-black text-2xl">{beatmapInfo.starRating.toFixed(2)}★</div>
-          <div className="text-white/25 text-xs mt-0.5">{beatmapInfo.bpm.toFixed(0)} BPM</div>
+        <div className="shrink-0 text-right hidden sm:block bg-white brutal-border p-3 shadow-[4px_4px_0_0_#000]">
+          <div className="text-black font-black text-3xl">{beatmapInfo.starRating.toFixed(2)}★</div>
+          <div className="text-black/60 text-sm font-bold mt-1 uppercase">{beatmapInfo.bpm.toFixed(0)} BPM</div>
         </div>
       </div>
 
       {/* ── Player + mods bar ── */}
-      <div className="px-6 py-3.5 border-b border-white/[0.04] flex flex-wrap items-center gap-x-5 gap-y-2">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-pink-500/15 flex items-center justify-center">
-            <User className="w-3.5 h-3.5 text-pink-400" />
+      <div className="px-6 py-4 border-b-[3px] border-black flex flex-wrap items-center gap-x-6 gap-y-3 bg-white">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 brutal-border bg-[var(--color-neo-pink)] flex items-center justify-center shadow-[2px_2px_0_0_#000]">
+            <User className="w-4 h-4 text-white" />
           </div>
-          <span className="text-white font-semibold text-sm">{replayInfo.playerName}</span>
+          <span className="text-black font-black text-base uppercase">{replayInfo.playerName}</span>
         </div>
 
-        <div className="h-4 w-px bg-white/10 hidden sm:block" />
+        <div className="h-6 w-[3px] bg-black hidden sm:block" />
 
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {mods.map((m) => <ModBadge key={m} mod={m} />)}
+          {mods.length === 0 && <span className="text-sm font-bold uppercase opacity-50">NOMOD</span>}
         </div>
 
-        <div className="h-4 w-px bg-white/10 hidden sm:block" />
+        <div className="h-6 w-[3px] bg-black hidden sm:block" />
 
-        <div className="flex items-center gap-1.5 text-white/30 text-xs">
-          <Clock className="w-3 h-3" />
+        <div className="flex items-center gap-2 text-black font-bold text-sm bg-[var(--color-neo-bg)] brutal-border px-3 py-1 shadow-[2px_2px_0_0_#000]">
+          <Clock className="w-4 h-4" />
           {replayInfo.timestamp.toLocaleDateString('id-ID', {
             day: '2-digit', month: 'short', year: 'numeric',
           })}
@@ -327,135 +279,140 @@ export default function GeneralInfo({ replayInfo, beatmapInfo, computed, userPro
       </div>
 
       {/* ── Score chips ── */}
-      <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 bg-[var(--color-neo-bg)] border-b-[3px] border-black">
         <StatChip
-          label="Score"
+          label="SCORE"
           value={replayInfo.score.toLocaleString()}
-          icon={<Trophy className="w-3 h-3" />}
+          icon={<Trophy className="w-4 h-4" />}
           color="yellow"
         />
         <StatChip
-          label="Accuracy"
+          label="ACCURACY"
           value={`${accuracy.toFixed(2)}%`}
-          icon={<BarChart2 className="w-3 h-3" />}
+          icon={<BarChart2 className="w-4 h-4" />}
           color="blue"
         />
         <StatChip
-          label="Max Combo"
+          label="MAX COMBO"
           value={`${replayInfo.maxCombo}x`}
-          icon={<Swords className="w-3 h-3" />}
+          icon={<Swords className="w-4 h-4" />}
           color="pink"
         />
         <StatChip
-          label="Unstable Rate"
+          label="UNSTABLE RATE"
           value={computed.ur > 0 ? computed.ur.toFixed(2) : 'N/A'}
-          icon={<Activity className="w-3 h-3" />}
+          icon={<Activity className="w-4 h-4" />}
           color={computed.ur > 0 && computed.ur < 100 ? 'green' : computed.ur > 200 ? 'red' : 'default'}
         />
         <StatChip
-          label={`Adj. UR${speedLabel}`}
+          label={`ADJ UR${speedLabel}`}
           value={computed.adjUr > 0 ? computed.adjUr.toFixed(2) : 'N/A'}
-          icon={<Zap className="w-3 h-3" />}
+          icon={<Zap className="w-4 h-4" />}
           color={computed.adjUr > 0 && computed.adjUr < 100 ? 'green' : computed.adjUr > 200 ? 'red' : 'default'}
         />
       </div>
 
       {/* ── Two-column detail grid ── */}
-      <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6 bg-white">
 
         {/* Replay info column */}
-        <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-4 pt-3 pb-1">
-          <p className="text-[10px] text-white/25 uppercase tracking-widest font-semibold mb-1">Replay</p>
+        <div className="brutal-border bg-[var(--color-neo-bg)] px-5 pt-4 pb-2 shadow-[4px_4px_0_0_#000]">
+          <p className="text-xs bg-black text-white px-2 py-1 w-fit font-black uppercase tracking-widest mb-3">
+            REPLAY METADATA
+          </p>
           <StatRow
-            label="Game Version"
-            value={replayInfo.gameVersion > 0 ? replayInfo.gameVersion.toString() : 'Unknown'}
-            icon={<Hash className="w-3 h-3" />}
+            label="CLIENT VERSION"
+            value={replayInfo.gameVersion > 0 ? replayInfo.gameVersion.toString() : 'UNKNOWN'}
+            icon={<Hash className="w-4 h-4" />}
           />
           <StatRow
-            label="Game Mode"
+            label="GAME MODE"
             value={gameMode}
-            icon={<Gamepad2 className="w-3 h-3" />}
+            icon={<Gamepad2 className="w-4 h-4" />}
           />
           <StatRow
-            label="Replay ID"
+            label="REPLAY ID"
             value={replayId}
-            icon={<Hash className="w-3 h-3" />}
+            icon={<Hash className="w-4 h-4" />}
             mono
           />
           <StatRow
-            label="Avg Frametime"
+            label="AVG FRAMETIME"
             value={computed.avgFrametime > 0 ? `${computed.avgFrametime.toFixed(2)} ms` : 'N/A'}
-            icon={<Timer className="w-3 h-3" />}
+            icon={<Timer className="w-4 h-4" />}
           />
           <StatRow
-            label="Total Frames"
+            label="TOTAL FRAMES"
             value={computed.totalFrames.toLocaleString()}
-            icon={<Layers className="w-3 h-3" />}
+            icon={<Layers className="w-4 h-4" />}
           />
         </div>
 
         {/* Beatmap + hits column */}
-        <div className="rounded-xl border border-white/[0.05] bg-white/[0.02] px-4 pt-3 pb-1">
-          <p className="text-[10px] text-white/25 uppercase tracking-widest font-semibold mb-1">Beatmap &amp; Hits</p>
+        <div className="brutal-border bg-[var(--color-neo-bg)] px-5 pt-4 pb-2 shadow-[4px_4px_0_0_#000]">
+          <p className="text-xs bg-black text-white px-2 py-1 w-fit font-black uppercase tracking-widest mb-3">
+            BEATMAP AND HITS
+          </p>
           <StatRow
             label="OD / CS / AR"
             value={`${beatmapInfo.od} / ${beatmapInfo.cs} / ${beatmapInfo.ar}`}
-            icon={<Target className="w-3 h-3" />}
+            icon={<Target className="w-4 h-4" />}
           />
           <StatRow
-            label="Circles"
+            label="CIRCLES"
             value={computed.beatmapCircles.toLocaleString()}
-            icon={<Star className="w-3 h-3" />}
+            icon={<Star className="w-4 h-4" />}
           />
           <StatRow
-            label="Sliders"
+            label="SLIDERS"
             value={computed.beatmapSliders.toLocaleString()}
-            icon={<Layers className="w-3 h-3" />}
+            icon={<Layers className="w-4 h-4" />}
           />
           <StatRow
-            label="Spinners"
+            label="SPINNERS"
             value={computed.beatmapSpinners.toLocaleString()}
-            icon={<Activity className="w-3 h-3" />}
+            icon={<Activity className="w-4 h-4" />}
           />
           <StatRow
             label="300 / 100 / 50 / ✕"
             value={`${replayInfo.count300} / ${replayInfo.count100} / ${replayInfo.count50} / ${replayInfo.countMiss}`}
-            icon={<Trophy className="w-3 h-3" />}
+            icon={<Trophy className="w-4 h-4" />}
           />
         </div>
       </div>
 
       {/* ── Hit breakdown bar ── */}
-      <div className="px-5 pb-5">
+      <div className="px-6 pb-6 bg-white">
         {total > 0 && (
-          <>
-            <div className="flex gap-0.5 h-1.5 rounded-full overflow-hidden">
+          <div className="brutal-border p-3 bg-[var(--color-neo-bg)] shadow-[4px_4px_0_0_#000]">
+            <div className="flex h-6 brutal-border overflow-hidden">
               {replayInfo.count300 > 0 && (
-                <div className="bg-blue-400" style={{ flex: replayInfo.count300 }} />
+                <div className="bg-[var(--color-neo-blue)] border-r-2 border-black last:border-0" style={{ flex: replayInfo.count300 }} />
               )}
               {replayInfo.count100 > 0 && (
-                <div className="bg-green-400" style={{ flex: replayInfo.count100 }} />
+                <div className="bg-[var(--color-neo-green)] border-r-2 border-black last:border-0" style={{ flex: replayInfo.count100 }} />
               )}
               {replayInfo.count50 > 0 && (
-                <div className="bg-yellow-400" style={{ flex: replayInfo.count50 }} />
+                <div className="bg-[var(--color-neo-yellow)] border-r-2 border-black last:border-0" style={{ flex: replayInfo.count50 }} />
               )}
               {replayInfo.countMiss > 0 && (
-                <div className="bg-red-500" style={{ flex: replayInfo.countMiss }} />
+                <div className="bg-[var(--color-neo-red)]" style={{ flex: replayInfo.countMiss }} />
               )}
             </div>
-            <div className="flex gap-4 mt-2">
+            <div className="flex gap-4 mt-3 flex-wrap font-bold text-sm uppercase">
               {[
-                { label: '300', count: replayInfo.count300, color: 'text-blue-400' },
-                { label: '100', count: replayInfo.count100, color: 'text-green-400' },
-                { label: '50',  count: replayInfo.count50,  color: 'text-yellow-400' },
-                { label: 'Miss', count: replayInfo.countMiss, color: 'text-red-400' },
+                { label: '300', count: replayInfo.count300, color: 'text-[var(--color-neo-blue)]' },
+                { label: '100', count: replayInfo.count100, color: 'text-[var(--color-neo-green)]' },
+                { label: '50',  count: replayInfo.count50,  color: 'text-black bg-[var(--color-neo-yellow)] px-1 brutal-border' },
+                { label: 'MISS', count: replayInfo.countMiss, color: 'text-[var(--color-neo-red)]' },
               ].map(({ label, count, color }) => (
-                <span key={label} className={`text-xs font-medium ${color}`}>
-                  {label}: {count}
+                <span key={label} className={`flex gap-1 items-center ${color}`}>
+                  <span>{label}:</span>
+                  <span className="font-black text-black text-base">{count}</span>
                 </span>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

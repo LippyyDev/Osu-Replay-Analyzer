@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Search, LogIn, LogOut, User } from 'lucide-react';
+import { Activity, Search, LogIn, LogOut, User, Terminal } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface OsuSession {
@@ -41,42 +41,45 @@ export default function Navbar() {
   const isSteal = pathname === '/steal' || pathname?.startsWith('/steal');
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.05] bg-[#0a0a0f]/80 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
+    <header className="sticky top-3 z-50 px-4 sm:px-6 lg:px-8 mb-10 transition-all duration-300">
+      <div className="max-w-7xl mx-auto">
+        {/* Floating, rounded, pop-up style container */}
+        <div className="flex items-center justify-between h-16 bg-[var(--color-neo-bg)] border-[3px] border-black rounded-2xl shadow-[6px_6px_0_0_#000] px-4 md:px-6">
 
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-pink-700 flex items-center justify-center shadow-md shadow-pink-500/30 shrink-0">
-              <Activity className="w-4 h-4 text-white" />
+            <div className="w-10 h-10 bg-[var(--color-neo-yellow)] border-[3px] border-black rounded-xl flex items-center justify-center shrink-0">
+              <Terminal className="w-5 h-5 text-black" />
             </div>
-            <span className="text-sm font-bold text-white hidden sm:block">osu! Cheat Detector</span>
+            <span className="text-sm font-black text-black hidden sm:block tracking-tight font-mono">
+              OSU REPLAY ANALYZER
+            </span>
           </div>
 
           {/* Nav links */}
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-3">
             <Link
               href="/"
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all duration-200 border-[3px] border-black rounded-xl shadow-[2px_2px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                 !isSteal
-                  ? 'bg-pink-500/15 text-pink-400 border border-pink-500/25'
-                  : 'text-white/40 hover:text-white/70 hover:bg-white/[0.04]'
+                  ? 'bg-[var(--color-neo-pink)] text-white'
+                  : 'bg-white text-black hover:bg-[var(--color-neo-yellow)]'
               }`}
             >
-              <Activity className="w-3.5 h-3.5" />
-              Relax Detector
+              <span className="hidden md:inline">RELAX DETECTOR</span>
+              <span className="md:hidden">RELAX</span>
             </Link>
 
             <Link
               href="/steal"
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all duration-200 border-[3px] border-black rounded-xl shadow-[2px_2px_0_0_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none ${
                 isSteal
-                  ? 'bg-violet-500/15 text-violet-400 border border-violet-500/25'
-                  : 'text-white/40 hover:text-white/70 hover:bg-white/[0.04]'
+                  ? 'bg-[var(--color-neo-blue)] text-white'
+                  : 'bg-white text-black hover:bg-[var(--color-neo-yellow)]'
               }`}
             >
-              <Search className="w-3.5 h-3.5" />
-              Steal Checker
+              <span className="hidden md:inline">STEAL CHECKER</span>
+              <span className="md:hidden">STEAL</span>
             </Link>
           </nav>
 
@@ -85,37 +88,37 @@ export default function Navbar() {
             {isSteal && (
               <>
                 {session ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3 bg-white px-3 py-1.5 border-[3px] border-black rounded-xl shadow-[2px_2px_0_0_#000]">
                     {session.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={session.avatarUrl}
                         alt={session.username}
-                        className="w-6 h-6 rounded-full border border-white/10 object-cover"
+                        className="w-8 h-8 object-cover border-[2px] border-black rounded-full"
                       />
                     ) : (
-                      <div className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center">
-                        <User className="w-3 h-3 text-violet-400" />
+                      <div className="w-8 h-8 bg-[var(--color-neo-green)] flex items-center justify-center border-[2px] border-black rounded-full">
+                        <User className="w-4 h-4 text-black" />
                       </div>
                     )}
-                    <span className="text-xs text-white/60 hidden sm:block">{session.username}</span>
+                    <span className="text-sm font-bold font-mono hidden sm:block truncate max-w-[100px]">{session.username}</span>
                     <button
                       onClick={handleLogout}
                       disabled={loggingOut}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-white/[0.03] text-white/30 border border-white/5 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/5 transition-all"
+                      className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-xs font-bold bg-[var(--color-neo-red)] text-white border-[2px] border-black rounded-lg hover:brightness-110 active:translate-x-[1px] active:translate-y-[1px] transition-all"
                       title="Logout dari osu!"
                     >
-                      <LogOut className="w-3 h-3" />
-                      <span className="hidden sm:inline">Logout</span>
+                      <LogOut className="w-4 h-4" />
+                      <span className="hidden sm:inline">LOGOUT</span>
                     </button>
                   </div>
                 ) : (
                   <a
                     href="/api/osu/oauth"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 hover:border-violet-500/40 transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold bg-[var(--color-neo-green)] text-black border-[3px] border-black rounded-xl shadow-[2px_2px_0_0_#000] hover:bg-green-400 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                   >
-                    <LogIn className="w-3.5 h-3.5" />
-                    Login osu! <span className="text-violet-400/50">(Auto Mode)</span>
+                    <LogIn className="w-4 h-4" />
+                    LOGIN OSU <span className="font-mono text-xs ml-1 opacity-80">(auto mode)</span>
                   </a>
                 )}
               </>
@@ -127,3 +130,4 @@ export default function Navbar() {
     </header>
   );
 }
+

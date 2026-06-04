@@ -2,15 +2,77 @@
 
 /* ── Design tokens (Tailwind v4 @theme) ──────────────────────────────────── */
 @theme {
-  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-work-sans), system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, "Fira Code", monospace;
 
   /* Custom animation registered as a Tailwind utility */
   --animate-fade-in: fade-in 0.4s ease-out both;
+
+  /* Neo Brutalism Colors */
+  --color-neo-yellow: #FFD166;
+  --color-neo-red: #EF476F;
+  --color-neo-blue: #118AB2;
+  --color-neo-green: #06D6A0;
+  --color-neo-pink: #FF69B4;
+  --color-neo-bg: #F4F4F0;
+  --color-neo-text: #1E1E1E;
 }
 
-/* Keyframes untuk animate-fade-in — wajib ada di sini karena
-   Tailwind tidak bisa generate @keyframes dari utility class */
+/* Neo Brutalism Custom Utilities via standard CSS */
+@layer utilities {
+  .brutal-border {
+    border: 3px solid var(--color-neo-text);
+    border-radius: 8px;
+  }
+  .brutal-shadow {
+    box-shadow: 6px 6px 0px 0px var(--color-neo-text);
+  }
+  .brutal-shadow-sm {
+    box-shadow: 4px 4px 0px 0px var(--color-neo-text);
+  }
+  .brutal-card {
+    background-color: white;
+    border: 3px solid var(--color-neo-text);
+    border-radius: 12px;
+    box-shadow: 6px 6px 0px 0px var(--color-neo-text);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  .brutal-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0px 0px var(--color-neo-text);
+  }
+  .brutal-card:active {
+    transform: translate(2px, 2px);
+    box-shadow: 4px 4px 0px 0px var(--color-neo-text);
+  }
+  
+  .brutal-btn {
+    border: 3px solid var(--color-neo-text);
+    border-radius: 8px;
+    box-shadow: 4px 4px 0px 0px var(--color-neo-text);
+    font-weight: 700;
+    transition: all 0.1s ease-in-out;
+  }
+  .brutal-btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px 0px var(--color-neo-text);
+  }
+  .brutal-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px 0px var(--color-neo-text);
+  }
+
+  /* Hide scrollbar but keep scrollable (for horizontal nav on mobile) */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Keyframes untuk animate-fade-in */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -22,19 +84,19 @@
   }
 }
 
-/* Scrollbar — satu-satunya CSS murni yang tidak bisa diganti Tailwind
-   karena Tailwind tidak support pseudo-element ::-webkit-scrollbar */
+/* Scrollbar — Neo Brutalism style */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 12px;
+  height: 12px;
+  border-left: 2px solid var(--color-neo-text);
 }
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--color-neo-bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 102, 171, 0.3);
-  border-radius: 999px;
+  background: var(--color-neo-pink);
+  border: 2px solid var(--color-neo-text);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 102, 171, 0.5);
+  background: var(--color-neo-yellow);
 }

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getOsuToken } from '@/lib/osuToken';
 
 /**
  * GET /api/osu/beatmap?md5=<beatmapMd5>
- * Looks up a beatmap by its MD5 hash and returns the download URL + metadata.
- * Fetches a fresh token from our own /api/osu/token route on each call.
+ * Looks up a beatmap by its MD5 hash and returns metadata.
+ * Uses shared token cache — no extra token request if cache is still valid.
  */
 export async function GET(req: NextRequest) {
   const md5 = req.nextUrl.searchParams.get('md5');
@@ -11,14 +12,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing md5 parameter' }, { status: 400 });
   }
 
-  // Get token from our own server-side route
-  const tokenRes = await fetch(new URL('/api/osu/token', req.url), {
-    method: 'POST',
-  });
-  if (!tokenRes.ok) {
+  let access_token: string;
+  try {
+    access_token = await getOsuToken();
+  } catch (err) {
+    console.error('[beatmap] Token error:', err);
     return NextResponse.json({ error: 'Failed to get osu! token' }, { status: 500 });
   }
-  const { access_token } = await tokenRes.json();
 
   // Lookup beatmap by MD5
   const beatmapRes = await fetch(
@@ -43,15 +43,15 @@ export async function GET(req: NextRequest) {
 
   const beatmap = await beatmapRes.json();
   return NextResponse.json({
-    beatmapId: beatmap.id,
+    beatmapId:    beatmap.id,
     beatmapSetId: beatmap.beatmapset_id,
-    title: beatmap.beatmapset?.title ?? 'Unknown',
-    artist: beatmap.beatmapset?.artist ?? 'Unknown',
-    version: beatmap.version,
-    od: beatmap.accuracy,
-    ar: beatmap.ar,
-    cs: beatmap.cs,
-    bpm: beatmap.bpm,
-    starRating: beatmap.difficulty_rating,
+    title:        beatmap.beatmapset?.title ?? 'Unknown',
+    artist:       beatmap.beatmapset?.artist ?? 'Unknown',
+    version:      beatmap.version,
+    od:           beatmap.accuracy,
+    ar:           beatmap.ar,
+    cs:           beatmap.cs,
+    bpm:          beatmap.bpm,
+    starRating:   beatmap.difficulty_rating,
   });
 }

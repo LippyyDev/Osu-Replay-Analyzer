@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getOsuToken } from '@/lib/osuToken';
 
 /**
  * GET /api/osu/download?beatmapId=<id>
  * Downloads the raw .osu beatmap file content for the given beatmap ID.
- * Returns the raw UTF-8 text of the .osu file.
+ * Uses shared token cache — no extra token request if cache is still valid.
  */
 export async function GET(req: NextRequest) {
   const beatmapId = req.nextUrl.searchParams.get('beatmapId');
@@ -11,14 +12,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing beatmapId' }, { status: 400 });
   }
 
-  // Get a token first
-  const tokenRes = await fetch(new URL('/api/osu/token', req.url), {
-    method: 'POST',
-  });
-  if (!tokenRes.ok) {
+  let access_token: string;
+  try {
+    access_token = await getOsuToken();
+  } catch (err) {
+    console.error('[download] Token error:', err);
     return NextResponse.json({ error: 'Failed to get osu! token' }, { status: 500 });
   }
-  const { access_token } = await tokenRes.json();
 
   // Download the .osu file content
   const downloadRes = await fetch(

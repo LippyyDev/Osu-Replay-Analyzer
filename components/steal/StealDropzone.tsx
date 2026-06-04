@@ -45,19 +45,16 @@ function FileChip({
   onRemove: () => void;
   color?: 'pink' | 'violet';
 }) {
-  const colors = {
-    pink:   'bg-pink-500/10 border-pink-500/20 text-pink-400',
-    violet: 'bg-violet-500/10 border-violet-500/20 text-violet-400',
-  };
+  const bg = color === 'pink' ? 'bg-[var(--color-neo-pink)] text-white' : 'bg-[var(--color-neo-blue)] text-white';
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${colors[color]}`}>
-      <FileText className="w-3.5 h-3.5 shrink-0" />
-      <span className="truncate max-w-[140px]">{file.name}</span>
+    <div className={`flex items-center gap-2 px-3 py-1.5 brutal-border font-mono text-xs font-bold ${bg}`}>
+      <FileText className="w-4 h-4 shrink-0" />
+      <span className="truncate max-w-[140px] uppercase">[{file.name}]</span>
       <button
         onClick={onRemove}
-        className="ml-auto shrink-0 hover:opacity-70 transition-opacity"
+        className="ml-auto shrink-0 bg-white text-black brutal-border p-0.5 hover:bg-[var(--color-neo-red)] hover:text-white transition-colors"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-3 h-3" />
       </button>
     </div>
   );
@@ -83,19 +80,6 @@ function DropZone({
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const colors = {
-    pink: {
-      border: dragging ? 'border-pink-400/60 bg-pink-500/5' : 'border-pink-500/20 hover:border-pink-500/40',
-      icon: 'bg-pink-500/10 text-pink-400',
-      text: 'text-pink-400',
-    },
-    violet: {
-      border: dragging ? 'border-violet-400/60 bg-violet-500/5' : 'border-violet-500/20 hover:border-violet-500/40',
-      icon: 'bg-violet-500/10 text-violet-400',
-      text: 'text-violet-400',
-    },
-  }[color];
-
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragging(false);
@@ -104,13 +88,17 @@ function DropZone({
     if (files.length > 0) onFiles(files.slice(0, maxFiles));
   }, [disabled, maxFiles, onFiles]);
 
+  const activeColor = color === 'pink' ? 'bg-[var(--color-neo-pink)] text-white' : 'bg-[var(--color-neo-blue)] text-white';
+
   return (
     <div
       onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragging(true); }}
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
       onClick={() => !disabled && inputRef.current?.click()}
-      className={`relative rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer p-5 ${colors.border} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`relative brutal-card cursor-pointer p-6 transition-all duration-200 
+        ${dragging ? activeColor : 'bg-white hover:bg-[var(--color-neo-yellow)]'}
+        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <input
         ref={inputRef}
@@ -125,17 +113,17 @@ function DropZone({
         }}
       />
 
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors.icon}`}>
-          <Upload className="w-5 h-5" />
+      <div className="flex flex-col items-center gap-4 text-center font-mono">
+        <div className="w-12 h-12 bg-white text-black brutal-border shadow-[2px_2px_0_0_#000] flex items-center justify-center">
+          <Upload className="w-6 h-6" />
         </div>
         <div>
-          <p className={`text-sm font-semibold ${colors.text}`}>{label}</p>
-          <p className="text-xs text-white/30 mt-0.5">{sublabel}</p>
+          <p className="text-sm font-bold uppercase">[{label}]</p>
+          <p className="text-xs opacity-80 mt-1 uppercase">__{sublabel}</p>
         </div>
 
         {children && (
-          <div className="w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full mt-2" onClick={(e) => e.stopPropagation()}>
             {children}
           </div>
         )}
@@ -167,30 +155,30 @@ export default function StealDropzone({
   }, [onComparisonChange, comparisonFiles]);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* ── Target Replay ─────────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-2">
-          <Target className="w-4 h-4 text-pink-400" />
-          <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">Target Replay</span>
-          <span className="ml-auto text-[10px] text-white/25">.osr atau .csv</span>
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 bg-[var(--color-neo-bg)] brutal-border p-2 shadow-[2px_2px_0_0_#000]">
+          <Target className="w-5 h-5 text-black" />
+          <span className="text-sm font-bold font-mono uppercase tracking-wide">target replay</span>
+          <span className="ml-auto text-xs font-mono font-bold bg-white px-2 border-l-2 border-black">.osr / .csv</span>
         </div>
 
         {targetFile ? (
-          <div className="rounded-xl border border-pink-500/20 bg-pink-500/5 p-4 space-y-2">
+          <div className="brutal-card p-4 space-y-4 bg-white">
             <FileChip
               file={targetFile}
               onRemove={() => onTargetChange(null)}
               color="pink"
             />
-            <p className="text-[10px] text-white/25 text-center">
-              Replay ini yang akan dibandingkan
+            <p className="text-xs font-mono font-bold text-center uppercase bg-[var(--color-neo-yellow)] brutal-border p-1">
+              subject for analysis
             </p>
           </div>
         ) : (
           <DropZone
-            label="Drop Target Replay"
-            sublabel="Replay yang ingin kamu cek apakah dicuri"
+            label="awaiting target file —"
+            sublabel="drop suspected replay here"
             color="pink"
             onFiles={handleTargetFiles}
             disabled={disabled}
@@ -199,18 +187,18 @@ export default function StealDropzone({
       </div>
 
       {/* ── Comparison Replays ────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 mb-2">
-          <Plus className="w-4 h-4 text-violet-400" />
-          <span className="text-xs font-semibold text-white/70 uppercase tracking-wide">
-            Comparison Replays
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 bg-[var(--color-neo-bg)] brutal-border p-2 shadow-[2px_2px_0_0_#000]">
+          <Plus className="w-5 h-5 text-black" />
+          <span className="text-sm font-bold font-mono uppercase tracking-wide">
+            comparison pool
           </span>
-          <span className="ml-auto text-[10px] text-white/25">
-            {comparisonFiles.length}/{MAX_COMPARISONS} replay
+          <span className="ml-auto text-xs font-mono font-bold bg-white px-2 border-l-2 border-black">
+            {comparisonFiles.length}/{MAX_COMPARISONS} max
           </span>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           {comparisonFiles.map((f, i) => (
             <FileChip
               key={`${f.name}-${i}`}
@@ -222,8 +210,8 @@ export default function StealDropzone({
 
           {comparisonFiles.length < MAX_COMPARISONS && (
             <DropZone
-              label={comparisonFiles.length === 0 ? 'Drop Comparison Replays' : 'Tambah Replay'}
-              sublabel={`Maksimal ${MAX_COMPARISONS} replay untuk dibandingkan`}
+              label={comparisonFiles.length === 0 ? "awaiting reference pool —" : "add reference replay —"}
+              sublabel={`max ${MAX_COMPARISONS} replays permitted`}
               color="violet"
               onFiles={handleComparisonFiles}
               maxFiles={MAX_COMPARISONS - comparisonFiles.length}

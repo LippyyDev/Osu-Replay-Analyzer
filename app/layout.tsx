@@ -1,22 +1,24 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Work_Sans } from 'next/font/google';
 import './globals.css';
-import Navbar from '@/components/Navbar';
+import Navbar from '@/components/layout/Navbar';
+import { ReplayProvider } from '@/lib/context/ReplayContext';
+import { AuthProvider } from '@/lib/context/AuthContext';
 
-const inter = Inter({
+const workSans = Work_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-work-sans',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'osu! Cheat Detector — Relax Hack & Replay Stealing',
+  title: 'osu! Replay Analyzer — Relax Hack & Replay Stealing',
   description:
-    'Deteksi penggunaan Relax hack dan replay stealing pada osu!standard. Analisis holdtime, hit error, aim similarity, dan metrik lainnya dari file .osr atau CSV.',
+    'Detect Relax hack and replay stealing in osu! standard. Analyze holdtime, hit error, aim similarity, and other metrics from .osr files or CSV exports.',
   keywords: ['osu', 'cheat detector', 'relax hack', 'replay analyzer', 'replay stealing', 'osu replay'],
   openGraph: {
-    title: 'osu! Cheat Detector',
-    description: 'Analisis replay untuk deteksi Relax hack dan Replay Stealing',
+    title: 'osu! Replay Analyzer',
+    description: 'Analyze osu! replays to detect Relax hack and Replay Stealing.',
     type: 'website',
   },
 };
@@ -27,12 +29,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" className={inter.variable} suppressHydrationWarning>
-      <body className="antialiased bg-[#0a0a0f] text-white font-sans" suppressHydrationWarning>
-        <Navbar />
-        {children}
+    <html lang="en" className={workSans.variable} suppressHydrationWarning>
+      <body
+        className="antialiased bg-[#f4f4f0] text-[#1e1e1e] font-sans selection:bg-[#ff69b4] selection:text-white"
+        suppressHydrationWarning
+      >
+        <AuthProvider>
+          <ReplayProvider>
+            <Navbar />
+            {children}
+            <footer className="border-t-[3px] border-black mt-20 py-8 bg-white">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center font-mono text-sm font-bold">
+                <p>osu! Replay Analyzer — Supports .osr and .csv files</p>
+                <p className="mt-2 bg-[var(--color-neo-yellow)] inline-block px-2 py-1 brutal-border shadow-[2px_2px_0_0_#000]">
+                  For educational purposes only. Results are heuristic.
+                </p>
+              </div>
+            </footer>
+          </ReplayProvider>
+        </AuthProvider>
       </body>
     </html>
   );
 }
-

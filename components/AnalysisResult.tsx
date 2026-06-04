@@ -10,11 +10,14 @@ import GeneralInfo from './GeneralInfo';
 import FullNoteLog from './FullNoteLog';
 import { downloadMarkdownReport } from '@/lib/reportGenerator';
 import { AlertTriangle, BarChart2, TableProperties, BookOpen, Download, FileText, List } from 'lucide-react';
+import ShareButton from './ShareButton';
 
 interface AnalysisResultProps {
   result: AnalysisResult;
   warnings: AnalysisWarning[];
   onReset: () => void;
+  /** When true, hides the Share button (already on a shared report page) */
+  isSharedView?: boolean;
   // Optional: present when source was .osr
   osrData?: {
     replayInfo: OsrReplayInfo;
@@ -97,6 +100,7 @@ export default function AnalysisResultView({
   warnings,
   onReset,
   osrData,
+  isSharedView = false,
 }: AnalysisResultProps) {
   const interpretation = generateInterpretation(result);
 
@@ -123,49 +127,56 @@ export default function AnalysisResultView({
   }
 
   return (
-    <div className="w-full space-y-6 animate-fade-in">
+    <div className="w-full space-y-10 animate-fade-in pb-16">
       {/* Warnings */}
       {warnings.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3 font-mono">
           {warnings.map((w, i) => (
             <div
               key={i}
-              className="flex items-start gap-3 px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm"
+              className="flex items-start gap-4 px-5 py-4 brutal-card bg-[var(--color-neo-yellow)] text-black"
             >
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              {w.message}
+              <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" />
+              <span className="font-bold uppercase leading-relaxed text-sm">{w.message}</span>
             </div>
           ))}
         </div>
       )}
 
+      {/* 1. Verdict */}
+      <VerdictCard result={result} onReset={onReset} />
+
       {/* General Info (only for .osr source) */}
       {osrData && (
-        <section>
-          <div className="flex items-center justify-between mb-4">
+        <section className="font-mono">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
             <SectionHeader
-              icon={<BarChart2 className="w-4 h-4" />}
-              title="General Information"
-              subtitle="Informasi replay dan beatmap dari osu! API"
+              icon={<BarChart2 className="w-5 h-5" />}
+              title="General Info"
+              subtitle="Replay and beatmap metadata"
             />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              {!isSharedView && (
+                <ShareButton
+                  result={result}
+                  warnings={warnings}
+                  osrData={osrData}
+                  filename={result.fileName}
+                />
+              )}
               <button
                 onClick={downloadReport}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium
-                bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40
-                text-purple-400 transition-all duration-200"
+                className="flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase bg-white text-black brutal-btn"
               >
-                <FileText className="w-3.5 h-3.5" />
-                Download Report (.md)
+                <FileText className="w-4 h-4" />
+                Download Report
               </button>
               <button
                 onClick={downloadCSV}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium
-                bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/20 hover:border-pink-500/40
-                text-pink-400 transition-all duration-200"
+                className="flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase bg-white text-black brutal-btn"
               >
-                <Download className="w-3.5 h-3.5" />
-                Download Raw CSV
+                <Download className="w-4 h-4" />
+                RAW CSV
               </button>
             </div>
           </div>
@@ -178,30 +189,32 @@ export default function AnalysisResultView({
         </section>
       )}
 
-      {/* Download Report button for CSV-only analysis (no osrData) */}
+      {/* Download Report + Share button for CSV-only analysis (no osrData) */}
       {!osrData && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3 font-mono flex-wrap">
+          {!isSharedView && (
+            <ShareButton
+              result={result}
+              warnings={warnings}
+              filename={result.fileName}
+            />
+          )}
           <button
             onClick={downloadReport}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium
-            bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40
-            text-purple-400 transition-all duration-200"
+            className="flex items-center gap-2 px-6 py-3 font-bold text-sm uppercase bg-[var(--color-neo-yellow)] text-black brutal-btn"
           >
-            <FileText className="w-3.5 h-3.5" />
-            Download Report (.md)
+            <FileText className="w-5 h-5" />
+              Download Report
           </button>
         </div>
       )}
 
-      {/* 1. Verdict */}
-      <VerdictCard result={result} onReset={onReset} />
-
       {/* 2. Score Breakdown */}
       <section>
         <SectionHeader
-          icon={<BarChart2 className="w-4 h-4" />}
-          title="Breakdown Skor"
-          subtitle="Kontribusi setiap indikator terhadap skor akhir"
+          icon={<BarChart2 className="w-5 h-5" />}
+          title="Score Breakdown"
+          subtitle="Component contributions to final score"
         />
         <ScoreBreakdownCards
           scores={result.scores}
@@ -218,24 +231,24 @@ export default function AnalysisResultView({
       {/* 3. Charts */}
       <section>
         <SectionHeader
-          icon={<BarChart2 className="w-4 h-4" />}
-          title="Distribusi Data"
-          subtitle="Visualisasi distribusi Hit Error dan HoldTime"
+          icon={<BarChart2 className="w-5 h-5" />}
+          title="Data Distribution"
+          subtitle="Visual analysis of HitError and HoldTime"
         />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Distribusi Hit Error" subtitle="Histogram selisih waktu klik (ms)">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChartCard title="Hit Error Distribution" subtitle="Timing Offsets (ms)">
             <HitErrorChart histogram={result.metrics.hitErrorHistogram} />
-            <p className="text-xs text-white/25 mt-2 text-center">
-              Biru = ±5ms (range ideal) · Garis merah muda = titik 0ms · Kurva ungu = distribusi
+            <p className="text-xs text-black/60 font-bold uppercase mt-4 text-center border-t-[3px] border-black pt-2">
+              BLUE = ±5ms · PINK = 0ms · PURPLE = CURVE
             </p>
           </ChartCard>
-          <ChartCard title="Distribusi HoldTime" subtitle="Circle notes only — durasi tombol ditekan (per 1ms)">
+          <ChartCard title="Hold Time Distribution" subtitle="Circle Press Duration (ms)">
             <HoldTimeChart
               distribution={result.metrics.holdtimeDistribution}
               histogram={result.metrics.holdtimeHistogram}
             />
-            <p className="text-xs text-white/25 mt-2 text-center">
-              Merah = ≤3ms · Kuning = 4-10ms · Biru = normal · Kurva cyan = log-normal fit
+            <p className="text-xs text-black/60 font-bold uppercase mt-4 text-center border-t-[3px] border-black pt-2">
+              RED = ≤3ms · YELLOW = 4-10ms · CYAN = LOG-NORMAL FIT
             </p>
           </ChartCard>
         </div>
@@ -244,9 +257,9 @@ export default function AnalysisResultView({
       {/* 4. Metrics Table */}
       <section>
         <SectionHeader
-          icon={<TableProperties className="w-4 h-4" />}
-          title="Detail Indikator"
-          subtitle="Tabel lengkap semua metrik dengan rentang normal dan status"
+          icon={<TableProperties className="w-5 h-5" />}
+          title="Indicator Details"
+          subtitle="Comprehensive metrics and classifications"
         />
         <IndicatorTable metrics={result.metrics} />
       </section>
@@ -255,9 +268,9 @@ export default function AnalysisResultView({
       {osrData?.csvContent && (
         <section>
           <SectionHeader
-            icon={<List className="w-4 h-4" />}
+            icon={<List className="w-5 h-5" />}
             title="Full Note Log"
-            subtitle="Log lengkap semua note dengan status, timing, dan posisi kursor"
+            subtitle="Raw event data with cursor positioning"
           />
           <FullNoteLog
             csvContent={osrData.csvContent}
@@ -270,12 +283,12 @@ export default function AnalysisResultView({
       {/* 6. Interpretation */}
       <section>
         <SectionHeader
-          icon={<BookOpen className="w-4 h-4" />}
-          title="Interpretasi"
-          subtitle="Penjelasan otomatis berdasarkan indikator yang paling menonjol"
+          icon={<BookOpen className="w-5 h-5" />}
+          title="Interpretation"
+          subtitle="Automated analysis conclusion"
         />
-        <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-6 py-5">
-          <p className="text-white/60 leading-relaxed text-sm">{interpretation}</p>
+        <div className="brutal-card bg-white px-6 py-6 font-mono">
+          <p className="text-black font-bold uppercase leading-relaxed">{interpretation}</p>
         </div>
       </section>
     </div>
@@ -294,11 +307,13 @@ function SectionHeader({
   subtitle: string;
 }) {
   return (
-    <div className="flex items-center gap-3 mb-4">
-      <div className="p-2 rounded-lg bg-pink-500/10 text-pink-400">{icon}</div>
+    <div className="flex items-center gap-4 mb-6 font-mono">
+      <div className="p-3 brutal-border bg-[var(--color-neo-pink)] text-white shadow-[2px_2px_0_0_#000]">
+        {icon}
+      </div>
       <div>
-        <h2 className="text-base font-semibold text-white/90">{title}</h2>
-        <p className="text-xs text-white/30">{subtitle}</p>
+        <h2 className="text-xl font-black uppercase tracking-wider">{title}</h2>
+        <p className="text-xs font-bold text-black/60 uppercase">{subtitle}</p>
       </div>
     </div>
   );
@@ -314,10 +329,10 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/5 bg-[#13131a] p-5">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-white/80">{title}</h3>
-        <p className="text-xs text-white/30">{subtitle}</p>
+    <div className="brutal-card bg-white p-6 font-mono">
+      <div className="mb-6 flex flex-col gap-1 border-b-[3px] border-black pb-3">
+        <h3 className="text-lg font-black text-black uppercase">{title}</h3>
+        <p className="text-xs font-bold text-black/60 uppercase">{subtitle}</p>
       </div>
       {children}
     </div>

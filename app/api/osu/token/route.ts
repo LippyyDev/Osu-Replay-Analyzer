@@ -1,40 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { getOsuToken } from '@/lib/osuToken';
 
 /**
  * POST /api/osu/token
- * Exchanges osu! Client Credentials for an access token.
- * Credentials live in .env.local and are never exposed to the browser.
+ * Returns a valid osu! access token.
+ * Uses shared in-memory cache — only contacts osu!.ppy.sh when token
+ * is missing or about to expire. Token is valid for ~24 hours.
  */
-export async function POST(_req: NextRequest) {
-  const clientId = process.env.OSU_CLIENT_ID;
-  const clientSecret = process.env.OSU_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
+export async function POST() {
+  try {
+    const access_token = await getOsuToken();
+    return NextResponse.json({ access_token });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[token] Error:', message);
     return NextResponse.json(
-      { error: 'osu! API credentials not configured on server' },
+      { error: `osu! token request failed: ${message}` },
       { status: 500 }
     );
   }
-
-  const res = await fetch('https://osu.ppy.sh/oauth/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      client_id: parseInt(clientId, 10),
-      client_secret: clientSecret,
-      grant_type: 'client_credentials',
-      scope: 'public',
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    return NextResponse.json(
-      { error: `osu! token request failed: ${text}` },
-      { status: res.status }
-    );
-  }
-
-  const data = await res.json();
-  return NextResponse.json({ access_token: data.access_token });
 }

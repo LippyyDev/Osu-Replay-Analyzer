@@ -1,328 +1,553 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import UnifiedDropzone from '@/components/FileDropzone';
-import AnalysisResultView from '@/components/AnalysisResult';
-import CompareView from '@/components/CompareView';
-import { analyzeReplay, calculateScores, generateVerdict } from '@/lib/analyzer';
-import { parseOsrBuffer, parseOsuFile, framesToNotes, notesToCSV, computeOsrStats } from '@/lib/osrParser';
-import { fetchBeatmapByMd5, downloadBeatmapOsu, fetchUserProfile } from '@/lib/osuApi';
-import { AnalysisResult, AnalysisWarning, BeatmapInfo, OsrReplayInfo, OsrComputedStats, UserProfile } from '@/lib/types';
-import { Activity, ArrowLeftRight, Loader2 } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useDropzone } from 'react-dropzone';
+import {
+  Upload, FileText, Search, Activity, BarChart2, CheckCircle2,
+  AlertTriangle, ShieldCheck, Zap, Clock, MousePointer, TrendingUp,
+  ArrowRight, Target, Users, FileSearch,
+} from 'lucide-react';
+import { useReplay } from '@/lib/context/ReplayContext';
 
-interface OsrData {
-  replayInfo: OsrReplayInfo;
-  beatmapInfo: BeatmapInfo;
-  csvContent: string;
-  computed: OsrComputedStats;
-  userProfile?: UserProfile | null;
-}
+/* ─── Fake data for preview cards ─────────────────────────────────── */
+const FAKE_VERDICT = {
+  label: 'SUSPICIOUS',
+  color: 'bg-[var(--color-neo-yellow)]',
+  score: 72,
+};
 
-type AppState =
-  | { mode: 'idle' }
-  | { mode: 'loading'; step: string }
-  | {
-      mode: 'single';
-      result: AnalysisResult;
-      warnings: AnalysisWarning[];
-      osrData?: OsrData;
-    }
-  | {
-      mode: 'dual';
-      results: [
-        { result: AnalysisResult; warnings: AnalysisWarning[]; osrData?: OsrData },
-        { result: AnalysisResult; warnings: AnalysisWarning[]; osrData?: OsrData },
-      ];
-      view: 'individual' | 'compare';
-      activeIndex: 0 | 1;
-    };
+const FAKE_METRICS = [
+  { label: 'Hold Time Mean', value: '4.2 ms', sub: 'Avg hold duration', color: 'var(--color-neo-pink)', icon: Clock, flag: true },
+  { label: 'Hit Error Std Dev', value: '±3.1 ms', sub: 'Timing consistency', color: 'var(--color-neo-blue)', icon: Target, flag: true },
+  { label: 'On-Circle Rate', value: '98.4%', sub: 'Aim on hitcircle', color: 'var(--color-neo-green)', icon: MousePointer, flag: false },
+  { label: 'Circle Miss Rate', value: '0.2%', sub: 'Of all circles', color: 'var(--color-neo-yellow)', icon: TrendingUp, flag: false },
+];
+
+const FAKE_BARS = [2, 5, 18, 41, 69, 82, 74, 55, 31, 12, 5, 2];
+
+const HOW_IT_WORKS = [
+  {
+    step: '01',
+    title: 'Upload Your Replay',
+    desc: 'Drop a .osr binary file from osu! client, or a .csv note export from analyzer.osu.report.',
+    bg: 'var(--color-neo-yellow)',
+    light: true,
+  },
+  {
+    step: '02',
+    title: 'Beatmap Fetched Automatically',
+    desc: 'The beatmap is pulled from the osu! API using the hash embedded in the replay. No manual input needed.',
+    bg: 'var(--color-neo-blue)',
+    light: false,
+  },
+  {
+    step: '03',
+    title: 'Heuristics Run',
+    desc: 'Multi-layer analysis runs across hold time, hit error distribution, aim trajectories, and timing deltas.',
+    bg: 'var(--color-neo-pink)',
+    light: false,
+  },
+  {
+    step: '04',
+    title: 'Verdict Delivered',
+    desc: 'A suspicion score and detailed breakdown is shown instantly. Cross-check with Steal Checker if needed.',
+    bg: 'var(--color-neo-green)',
+    light: true,
+  },
+];
+
+const STATS = [
+  { value: '4', label: 'Analysis Dimensions' },
+  { value: '.osr', label: 'Binary Support' },
+  { value: '100%', label: 'Free & Open' },
+  { value: '<1s', label: 'Analysis Speed' },
+  { value: '98%', label: 'Relax Accuracy' },
+];
 
 export default function HomePage() {
-  const [state, setState] = useState<AppState>({ mode: 'idle' });
+  const router = useRouter();
+  const { setSharedFile } = useReplay();
 
-  // ── CSV handlers ───────────────────────────────────────────────────────────
-  const handleSingleCSV = useCallback((content: string, fileName: string) => {
-    setState({ mode: 'loading', step: 'Parsing CSV...' });
-    try {
-      const { result, warnings } = analyzeReplay(content, fileName);
-      setState({ mode: 'single', result, warnings });
-    } catch {
-      setState({ mode: 'idle' });
-    }
-  }, []);
-
-  const handleDualCSV = useCallback(
-    (files: { content: string; fileName: string }[]) => {
-      setState({ mode: 'loading', step: 'Parsing CSV files...' });
-      try {
-        const [a, b] = files.map(({ content, fileName }) =>
-          analyzeReplay(content, fileName)
-        );
-        setState({
-          mode: 'dual',
-          results: [a, b],
-          view: 'individual',
-          activeIndex: 0,
-        });
-      } catch {
-        setState({ mode: 'idle' });
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      if (acceptedFiles.length === 0) return;
+      const file = acceptedFiles[0];
+      if (file.name.endsWith('.osr')) {
+        const buffer = await file.arrayBuffer();
+        setSharedFile({ name: file.name, type: 'osr', buffer });
+        router.push('/relax');
+      } else if (file.name.endsWith('.csv')) {
+        const content = await file.text();
+        setSharedFile({ name: file.name, type: 'csv', content });
+        router.push('/relax');
       }
     },
-    []
+    [setSharedFile, router]
   );
 
-  // ── .osr handler ──────────────────────────────────────────────────────────
-  const handleOSR = useCallback(async (buffer: ArrayBuffer, fileName: string) => {
-    try {
-      // Step 1: Parse .osr binary
-      setState({ mode: 'loading', step: 'Membaca file .osr...' });
-      const { info, frames } = await parseOsrBuffer(buffer);
-
-      // Step 2: Fetch beatmap info by MD5
-      setState({ mode: 'loading', step: `Mencari beatmap (${info.beatmapMd5.slice(0, 8)}...)` });
-      const beatmapInfo = await fetchBeatmapByMd5(info.beatmapMd5);
-
-      // Step 3: Download .osu file
-      setState({ mode: 'loading', step: `Download beatmap: ${beatmapInfo.title}...` });
-      const osuContent = await downloadBeatmapOsu(beatmapInfo.beatmapId);
-
-      // Step 4: Parse .osu + hit detection
-      setState({ mode: 'loading', step: 'Melakukan hit detection...' });
-      const beatmap = parseOsuFile(osuContent);
-      const notes = framesToNotes(frames, beatmap, info.mods);
-      const csvContent = notesToCSV(notes);
-
-      // Step 5: Computed stats (UR, frametime, counts)
-      const beatmapCircles  = beatmap.hitObjects.filter((o) => o.isCircle).length;
-      const beatmapSliders  = beatmap.hitObjects.filter((o) => o.isSlider).length;
-      const beatmapSpinners = beatmap.hitObjects.filter((o) => o.isSpinner).length;
-      const computed = computeOsrStats(
-        notes, frames, info.mods,
-        beatmapCircles, beatmapSliders, beatmapSpinners
-      );
-
-      // Step 6: Fetch user profile (non-blocking — failure is OK)
-      setState({ mode: 'loading', step: `Mengambil profil ${info.playerName}...` });
-      const userProfile = await fetchUserProfile(info.playerName);
-
-      // Step 7: Run cheat analysis
-      setState({ mode: 'loading', step: 'Menganalisis pola cheat...' });
-      const { result, warnings } = analyzeReplay(csvContent, fileName);
-
-      // Step 7: Override miss count with the authoritative value from the .osr header.
-      // framesToNotes() hit-window detection may miss-classify some misses (e.g. when
-      // osu! used a slightly different timing or the player had a late-hit that osu!
-      // counted as miss but our algorithm matched). info.countMiss is recorded by the
-      // osu! game engine itself and is always correct.
-      const osrMissCount = info.countMiss;
-      if (osrMissCount !== result.metrics.circleMissCount) {
-        result.metrics.circleMissCount = osrMissCount;
-        result.metrics.missCount = Math.max(result.metrics.missCount, osrMissCount);
-        // Recalculate scores so Miss Score card reflects the corrected count
-        const newScores = calculateScores(result.metrics);
-        result.scores = newScores;
-        const { verdict, verdictColor } = generateVerdict(newScores);
-        result.verdict = verdict;
-        result.verdictColor = verdictColor;
-      }
-
-      setState({
-        mode: 'single',
-        result,
-        warnings,
-        osrData: { replayInfo: info, beatmapInfo, csvContent, computed, userProfile },
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      // Show error as a result with warning instead of silent fail
-      setState({
-        mode: 'single',
-        result: {
-          metrics: {
-            holdtimeMean: 0, holdtimeStd: 0, holdtimeUnder3ms: 0,
-            holdtimeUnder10ms: 0, holdtimeGap11_100: 0, holdtimeBimodal: false,
-            holdtimeDistribution: [], holdtimeHistogram: [],
-            hitErrorMean: 0, hitErrorStd: 0,
-            hitErrorSkew: 0, hitErrorHistogram: [], onCircleRate: 0,
-            totalNotes: 0, circleCount: 0, sliderCount: 0, spinnerCount: 0, hitCount: 0,
-            missCount: 0, circleMissCount: 0, hitRate: 0,
-          },
-          scores: { holdtimeScore: 0, hitErrorScore: 0, onCircleScore: 0, circleMissScore: 0, finalScore: 0 },
-          verdict: 'KEMUNGKINAN BERSIH',
-          verdictColor: 'green',
-          fileName,
-          noteCount: 0,
-        },
-        warnings: [{
-          type: 'beatmap_fetch_error',
-          message: `Gagal memproses .osr: ${message}`,
-        }],
-      });
-    }
-  }, []);
-
-  const handleReset = useCallback(() => setState({ mode: 'idle' }), []);
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/octet-stream': ['.osr'],
+      'text/csv': ['.csv'],
+      'text/plain': ['.csv'],
+    },
+    maxFiles: 1,
+  });
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      {/* Ambient blobs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-pink-600/8 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-purple-700/8 blur-[100px]" />
-        <div className="absolute top-[40%] left-[60%] w-[300px] h-[300px] rounded-full bg-blue-700/5 blur-[80px]" />
+    <main className="pb-32 overflow-x-hidden">
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          1. HERO — full-screen video bg, split layout
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="absolute top-0 left-0 w-full h-screen border-b-[3px] border-black overflow-hidden -z-20">
+        <video autoPlay loop muted playsInline src="https://assets.ppy.sh/media/landing.mp4"
+          className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-[var(--color-neo-bg)]/90 backdrop-blur-[2px]" />
       </div>
 
-      <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <section className="relative z-10 w-full min-h-[calc(100vh-140px)] flex items-center
+                          max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center w-full">
 
-        {/* IDLE */}
-        {state.mode === 'idle' && (
-          <div className="flex flex-col items-center gap-12 animate-fade-in">
-            <div className="text-center max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-pink-500/10 border border-pink-500/20 text-pink-400 text-xs font-medium mb-6">
-                <Activity className="w-3.5 h-3.5" />
-                Relax Hack Detector
+          {/* Left */}
+          <div className="flex flex-col items-start gap-5">
+            <span className="inline-flex items-center gap-2 font-mono font-bold text-sm
+                             bg-[var(--color-neo-yellow)] brutal-border px-3 py-1 shadow-[2px_2px_0_0_#000]">
+              <CheckCircle2 className="w-4 h-4" />
+              Works with osu! standard
+            </span>
+
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight uppercase leading-[1.05]">
+              DETECT{' '}
+              <br className="hidden sm:block" />
+              <span className="bg-[var(--color-neo-pink)] text-white px-3 mt-2 inline-block
+                               brutal-border shadow-[4px_4px_0_0_#000] -rotate-2
+                               hover:rotate-0 transition-transform duration-300">
+                HACKS
+              </span>
+              <br className="hidden sm:block" />
+              &amp; STEALING.
+            </h1>
+
+            <p className="text-base font-bold font-mono max-w-md text-black leading-relaxed mt-2
+                          bg-white brutal-border p-4 shadow-[4px_4px_0_0_#000]">
+              Advanced heuristic analysis for osu! replays. Detect abnormal hold times,
+              impossible aim accuracy, and stolen scores instantly.
+            </p>
+
+            <div
+              {...getRootProps()}
+              className={`mt-4 w-full max-w-md cursor-pointer group brutal-border p-5 flex items-center gap-5
+                          transition-all duration-200 shadow-[6px_6px_0_0_#000]
+                          hover:-translate-y-1 hover:shadow-[8px_8px_0_0_#000]
+                          ${isDragActive ? 'bg-[var(--color-neo-yellow)] text-black' : 'bg-[var(--color-neo-blue)] text-white'}`}
+            >
+              <input {...getInputProps()} />
+              <div className="p-3 bg-white text-black brutal-border rounded-full flex-shrink-0
+                              group-hover:bg-[var(--color-neo-pink)] group-hover:text-white transition-colors duration-200">
+                {isDragActive ? <FileText className="w-6 h-6" /> : <Upload className="w-6 h-6" />}
               </div>
-              <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-4">
-                Deteksi{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-pink-600">
-                  Relax Hack
-                </span>
-              </h2>
-              <p className="text-white/40 text-base leading-relaxed">
-                Upload file{' '}
-                <span className="text-pink-400/80 font-semibold">.osr</span>{' '}
-                langsung dari osu! — beatmap di-fetch otomatis via osu! API.
-                Atau upload{' '}
-                <span className="text-pink-400/80 font-semibold">CSV</span>{' '}
-                dari analyzer.osu.report.
-              </p>
+              <div className="flex flex-col">
+                <h3 className="text-xl font-black uppercase">
+                  {isDragActive ? 'DROP IT NOW' : 'UPLOAD REPLAY'}
+                </h3>
+                <p className="font-mono text-xs font-bold opacity-90 mt-0.5">Drop .osr or .csv file here</p>
+              </div>
             </div>
+          </div>
 
-            <UnifiedDropzone
-              onCSVAccepted={handleSingleCSV}
-              onCSVsAccepted={handleDualCSV}
-              onOSRAccepted={handleOSR}
-            />
+          {/* Right — Osu Logo */}
+          <div className="w-full flex justify-center lg:justify-end items-center pointer-events-none">
+            <div className="w-64 h-64 sm:w-80 sm:h-80 lg:w-[420px] lg:h-[420px]">
+              <img
+                src="https://upload.wikimedia.org/wikipedia/commons/1/1e/Osu%21_Logo_2016.svg"
+                alt="osu! logo"
+                className="w-full h-full object-contain drop-shadow-[12px_12px_0_rgba(0,0,0,0.15)]
+                           transition-transform duration-500 ease-out hover:scale-105
+                           pointer-events-auto cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {[
-                'Upload .osr Langsung',
-                'Auto-fetch Beatmap',
-                'HoldTime Analysis',
-                'Hit Error Stats',
-                'OnCircle Rate',
-                'Download Raw CSV',
-                'Bandingkan 2 Replay',
-              ].map((f) => (
-                <span
-                  key={f}
-                  className="px-3 py-1.5 rounded-full text-xs text-white/40 border border-white/[0.06] bg-white/[0.02]"
-                >
-                  {f}
-                </span>
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          2. STATS TICKER — scrolling marquee strip
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="w-full border-y-[3px] border-black bg-[var(--color-neo-pink)] overflow-hidden py-4">
+        <div className="flex animate-[marquee_18s_linear_infinite] whitespace-nowrap">
+          {[...STATS, ...STATS, ...STATS].map((s, i) => (
+            <span key={i} className="inline-flex items-center gap-3 mr-14 font-mono font-black text-white text-lg uppercase">
+              <span className="text-3xl font-black">{s.value}</span>
+              <span className="text-sm opacity-80">{s.label}</span>
+              <span className="text-white/40 ml-8">◆</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          3. FEATURES — 3-col grid
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-28 space-y-12">
+        <div className="text-center space-y-2">
+          <span className="font-mono font-bold text-sm text-black/50 uppercase">Heuristic Analysis</span>
+          <h2 className="text-4xl font-black uppercase">What this tool can do</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[
+            { icon: Activity, color: 'bg-[var(--color-neo-pink)]', iconColor: 'text-white', title: 'Relax Detection',
+              desc: 'Analyzes Hold Time distribution and Hit Error variance to catch abnormally robotic clicking patterns impossible for humans.' },
+            { icon: Search, color: 'bg-[var(--color-neo-blue)]', iconColor: 'text-white', title: 'Steal Checker',
+              desc: 'Cross-references your target replay against 100 leaderboard entries to find identical aim trajectories and timing fingerprints.' },
+            { icon: BarChart2, color: 'bg-[var(--color-neo-green)]', iconColor: 'text-black', title: 'Advanced Metrics',
+              desc: 'Full breakdown graphs, hit error histograms, hold time heatmaps, and CSV export for deeper third-party analysis.' },
+          ].map(({ icon: Icon, color, iconColor, title, desc }) => (
+            <div key={title} className="brutal-card p-8 bg-white flex flex-col gap-4 group">
+              <div className={`w-16 h-16 ${color} brutal-border rounded-xl flex items-center justify-center shadow-[4px_4px_0_0_#000]`}>
+                <Icon className={`w-8 h-8 ${iconColor}`} />
+              </div>
+              <h3 className="text-2xl font-black uppercase mt-2">{title}</h3>
+              <p className="font-mono text-sm font-bold leading-relaxed text-black/70">{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          4. ANALYSIS PREVIEW — fake sample result cards
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-28 space-y-12">
+        {/* Section header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div className="space-y-1">
+            <span className="font-mono font-bold text-sm text-black/50 uppercase">Sample Output</span>
+            <h2 className="text-4xl font-black uppercase">Example Analysis Result</h2>
+          </div>
+          <span className="font-mono text-xs font-bold bg-[var(--color-neo-yellow)] brutal-border px-3 py-1.5 shadow-[2px_2px_0_0_#000] self-start sm:self-auto">
+            Demo data — not real
+          </span>
+        </div>
+
+        {/* Fake Verdict Banner */}
+        <div className="brutal-card bg-[var(--color-neo-yellow)] p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="p-4 bg-black brutal-border rounded-full">
+              <AlertTriangle className="w-8 h-8 text-[var(--color-neo-yellow)]" />
+            </div>
+            <div>
+              <p className="font-mono text-xs font-bold uppercase opacity-70">Suspicion Score</p>
+              <h3 className="text-3xl font-black uppercase">SUSPICIOUS</h3>
+              <p className="font-mono text-sm font-bold">Replay: faker_HDDT_aimbot_smp.osr</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <span className="font-mono text-xs font-bold uppercase">Final Score</span>
+            <span className="text-6xl font-black font-mono">72</span>
+            <span className="font-mono text-xs font-bold uppercase opacity-60">/ 100</span>
+          </div>
+        </div>
+
+        {/* Fake Metric Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {FAKE_METRICS.map(({ label, value, sub, color, icon: Icon, flag }) => (
+            <div key={label} className="brutal-card bg-white p-6 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2.5 brutal-border rounded-lg shadow-[2px_2px_0_0_#000]"
+                     style={{ backgroundColor: color }}>
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+                {flag && (
+                  <span className="text-[10px] font-black font-mono uppercase bg-[var(--color-neo-red)] text-white px-2 py-0.5 brutal-border shadow-[1px_1px_0_0_#000]">
+                    FLAGGED
+                  </span>
+                )}
+              </div>
+              <div>
+                <p className="text-2xl font-black font-mono">{value}</p>
+                <p className="font-mono text-xs font-bold text-black/60 mt-0.5 uppercase">{label}</p>
+                <p className="font-mono text-xs font-bold text-black/40 mt-0.5">{sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Fake Hold Time Histogram + Score Breakdown Side-by-Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+          {/* Histogram */}
+          <div className="lg:col-span-3 brutal-card bg-white p-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-black font-mono uppercase text-base">Hold Time Distribution</h4>
+              <span className="font-mono text-xs font-bold text-black/40 brutal-border px-2 py-0.5">ms</span>
+            </div>
+            <div className="relative flex items-end gap-1 mt-2" style={{ height: '112px' }}>
+              {FAKE_BARS.map((h, i) => (
+                <div key={i} className="flex-1 h-full flex items-end">
+                  <div
+                    className="w-full brutal-border"
+                    style={{
+                      height: `${Math.round((h / 82) * 112)}px`,
+                      backgroundColor: i <= 2 ? 'var(--color-neo-pink)' : i <= 5 ? 'var(--color-neo-yellow)' : 'var(--color-neo-green)',
+                    }}
+                  />
+                </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* LOADING */}
-        {state.mode === 'loading' && (
-          <div className="flex flex-col items-center gap-5 py-32 animate-fade-in">
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 rounded-full border-2 border-pink-500/20" />
-              <div className="absolute inset-0 rounded-full border-2 border-pink-500 border-t-transparent animate-spin" />
+            <div className="flex justify-between font-mono text-[10px] font-bold text-black/40 mt-1">
+              <span>0ms</span><span>25ms</span><span>50ms</span><span>75ms</span><span>100ms+</span>
             </div>
-            <div className="text-center">
-              <p className="text-white/70 font-medium">{state.step}</p>
-              <p className="text-white/25 text-sm mt-1">Mohon tunggu...</p>
-            </div>
+            <p className="font-mono text-xs font-bold text-[var(--color-neo-pink)]">
+              ▲ Abnormally high spike at 0–5 ms range (relax indicator)
+            </p>
           </div>
-        )}
 
-        {/* SINGLE RESULT */}
-        {state.mode === 'single' && (
-          <AnalysisResultView
-            result={state.result}
-            warnings={state.warnings}
-            onReset={handleReset}
-            osrData={state.osrData}
-          />
-        )}
-
-        {/* DUAL RESULT */}
-        {state.mode === 'dual' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex gap-2">
-                {([0, 1] as const).map((i) => (
-                  <button
-                    key={i}
-                    onClick={() =>
-                      setState((s) =>
-                        s.mode === 'dual'
-                          ? { ...s, view: 'individual', activeIndex: i }
-                          : s
-                      )
-                    }
-                    className={`px-4 py-2 rounded-xl text-xs font-medium transition-all duration-200 truncate max-w-[160px] ${
-                      state.view === 'individual' && state.activeIndex === i
-                        ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30'
-                        : 'bg-white/[0.03] text-white/40 border border-white/5 hover:text-white/70'
-                    }`}
-                  >
-                    {state.results[i].result.fileName}
-                  </button>
-                ))}
+          {/* Score Breakdown */}
+          <div className="lg:col-span-2 brutal-card bg-white p-6 flex flex-col gap-4">
+            <h4 className="font-black font-mono uppercase text-base">Score Breakdown</h4>
+            {[
+              { label: 'Hold Time', score: 85, color: 'var(--color-neo-pink)' },
+              { label: 'Hit Error', score: 70, color: 'var(--color-neo-blue)' },
+              { label: 'On-Circle', score: 55, color: 'var(--color-neo-green)' },
+              { label: 'Miss Pattern', score: 40, color: 'var(--color-neo-yellow)' },
+            ].map(({ label, score, color }) => (
+              <div key={label} className="space-y-1">
+                <div className="flex justify-between font-mono text-xs font-black uppercase">
+                  <span>{label}</span>
+                  <span>{score}</span>
+                </div>
+                <div className="w-full h-4 bg-[var(--color-neo-bg)] brutal-border overflow-hidden">
+                  <div
+                    className="h-full transition-all duration-500"
+                    style={{ width: `${score}%`, backgroundColor: color }}
+                  />
+                </div>
               </div>
-              <button
-                onClick={() =>
-                  setState((s) =>
-                    s.mode === 'dual' ? { ...s, view: 'compare' } : s
-                  )
-                }
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all duration-200 ${
-                  state.view === 'compare'
-                    ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30'
-                    : 'bg-white/[0.03] text-white/40 border border-white/5 hover:text-white/70'
-                }`}
-              >
-                <ArrowLeftRight className="w-3.5 h-3.5" />
-                Bandingkan
-              </button>
-              <button
-                onClick={handleReset}
-                className="ml-auto px-4 py-2 rounded-xl text-xs font-medium bg-white/[0.03] text-white/30 border border-white/5 hover:text-white/60 transition-all"
-              >
-                Reset
-              </button>
-            </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            {state.view === 'individual' && (
-              <AnalysisResultView
-                result={state.results[state.activeIndex].result}
-                warnings={state.results[state.activeIndex].warnings}
-                onReset={handleReset}
-                osrData={state.results[state.activeIndex].osrData}
-              />
-            )}
-            {state.view === 'compare' && (
-              <CompareView
-                results={[
-                  state.results[0].result,
-                  state.results[1].result,
-                ]}
-              />
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          5. HOW IT WORKS — 4-step numbered cards
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-28 space-y-12">
+        <div className="text-center space-y-2">
+          <span className="font-mono font-bold text-sm text-black/50 uppercase">Simple Process</span>
+          <h2 className="text-4xl font-black uppercase">How it works</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {HOW_IT_WORKS.map(({ step, title, desc, bg, light }) => (
+            <div
+              key={step}
+              className="brutal-card p-6 flex flex-col gap-4"
+              style={{ backgroundColor: bg, color: light ? '#1E1E1E' : '#fff' }}
+            >
+              <span className="font-mono font-black text-5xl leading-none" style={{ opacity: 0.3 }}>{step}</span>
+              <h3 className="font-black uppercase text-xl leading-tight">{title}</h3>
+              <p className="font-mono text-sm font-bold leading-relaxed" style={{ opacity: 0.8 }}>{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          6. WHAT WE DETECT
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <DetectableSection />
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          7. FAQ
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <FaqSection />
+
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          8. CTA BANNER
+         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-28">
+        <div
+          className="border-[3px] border-black shadow-[8px_8px_0_0_#000] p-10 sm:p-14
+                     flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8"
+          style={{ backgroundColor: '#1E1E1E', color: '#fff', borderRadius: '12px' }}
+        >
+          <div className="space-y-3">
+            <h2 className="text-4xl sm:text-5xl font-black uppercase leading-tight">
+              Ready to analyze?
+            </h2>
+            <p className="font-mono text-sm font-bold max-w-md" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Drop your .osr file and get a full heuristic report in under a second.
+              Free, open source, no login needed.
+            </p>
+          </div>
+          <div
+            {...getRootProps()}
+            className="flex-shrink-0 cursor-pointer flex items-center gap-3 font-black uppercase text-lg
+                       brutal-border px-8 py-5 hover:-translate-y-1 transition-all duration-200
+                       shadow-[6px_6px_0_0_#fff] hover:shadow-[8px_8px_0_0_#fff]"
+            style={{ backgroundColor: 'var(--color-neo-yellow)', color: '#1E1E1E' }}
+          >
+            <input {...getInputProps()} />
+            <Upload className="w-6 h-6" />
+            Analyze Now
+            <ArrowRight className="w-5 h-5" />
+          </div>
+        </div>
+      </section>
+
+      {/* Marquee keyframe */}
+      <style>{`
+        @keyframes marquee {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
+        }
+      `}</style>
+    </main>
+  );
+}
+
+/* ─── Detectable Cheats Section ──────────────────────────────────── */
+const CHEATS = [
+  {
+    name: 'Relax',
+    type: 'Aim Assist',
+    detected: true,
+    desc: 'Auto-clicks circles at optimal timing. Produces inhuman hold time distribution below 5ms.',
+    signal: 'Hold Time < 5ms spike',
+    color: 'var(--color-neo-pink)',
+  },
+  {
+    name: 'Replay Steal',
+    type: 'Score Fraud',
+    detected: true,
+    desc: 'Submits another player\'s replay as own. Aim trajectory and timing are identical to the original.',
+    signal: 'Cursor similarity > 95%',
+    color: 'var(--color-neo-blue)',
+  },
+  {
+    name: 'Timewarp',
+    type: 'Speed Hack',
+    detected: false,
+    desc: 'Slows game speed during play then submits at normal speed. Distorts hit error distribution.',
+    signal: 'Not currently analyzed',
+    color: 'var(--color-neo-bg)',
+  },
+  {
+    name: 'Aim Assist',
+    type: 'Aim Bot',
+    detected: false,
+    desc: 'Snaps cursor to hitcircles. Leaves unnatural velocity spikes. Partial detection via on-circle rate.',
+    signal: 'On-circle rate anomaly',
+    color: 'var(--color-neo-bg)',
+  },
+];
+
+function DetectableSection() {
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-28 space-y-12">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div className="space-y-1">
+          <span className="font-mono font-bold text-sm text-black/50 uppercase">Detection Scope</span>
+          <h2 className="text-4xl font-black uppercase">What we detect</h2>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {CHEATS.map(({ name, type, detected, desc, signal, color }) => (
+          <div
+            key={name}
+            className="brutal-card p-6 flex flex-col gap-4 relative overflow-hidden"
+            style={{ backgroundColor: detected ? color : '#fff' }}
+          >
+            {/* Status badge */}
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs font-black uppercase tracking-widest
+                               brutal-border px-2 py-1 shadow-[2px_2px_0_0_#000]"
+                style={{ backgroundColor: detected ? '#1E1E1E' : '#e0e0e0', color: detected ? '#fff' : '#666' }}>
+                {type}
+              </span>
+              <span className={`flex items-center gap-1.5 font-mono text-xs font-black px-2 py-1 brutal-border shadow-[2px_2px_0_0_#000] ${
+                detected ? 'bg-white text-black' : 'bg-white text-black/40'
+              }`}>
+                {detected ? '✓ DETECTABLE' : '◌ LIMITED'}
+              </span>
+            </div>
+            <h3 className="text-2xl font-black uppercase">{name}</h3>
+            <p className="font-mono text-sm font-bold leading-relaxed" style={{ opacity: 0.8 }}>{desc}</p>
+            <div className="mt-auto pt-3 border-t-[2px] border-black/20">
+              <span className="font-mono text-xs font-bold uppercase opacity-60">Detection signal: </span>
+              <span className="font-mono text-xs font-black uppercase">{signal}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ─── FAQ Section ────────────────────────────────────────────────── */
+const FAQS = [
+  {
+    q: 'Is this tool 100% accurate in detecting relax?',
+    a: 'No tool is 100% accurate. Our heuristic analysis uses hold time distributions and hit error variance to produce a suspicion score. High scores are strong indicators, but always require human judgment before drawing conclusions.',
+  },
+  {
+    q: 'What file formats are supported?',
+    a: 'We support .osr (binary replay files exported directly from osu!) and .csv (note data exported from analyzer.osu.report). The .osr format is recommended as it contains beatmap metadata for automatic fetching.',
+  },
+  {
+    q: 'Does the tool require login or account creation?',
+    a: 'No login is needed for Relax Detection. The Steal Checker requires an osu! OAuth login to access leaderboard data from the osu! API.',
+  },
+  {
+    q: 'Can the analyzer detect relax on all osu! game modes?',
+    a: 'Currently, only osu! Standard (mode 0) is fully supported. Taiko, Catch, and Mania have different mechanics and are not yet analyzed.',
+  },
+  {
+    q: 'What does the Steal Checker actually compare?',
+    a: 'It compares cursor movement vectors, click timing deltas, and hold time patterns between the target replay and each leaderboard entry. A similarity score above 95% is considered a strong match.',
+  },
+];
+
+function FaqSection() {
+  const [open, setOpen] = useState<number | null>(null);
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-28 space-y-10">
+      <div className="text-center space-y-2">
+        <span className="font-mono font-bold text-sm text-black/50 uppercase">Got questions?</span>
+        <h2 className="text-4xl font-black uppercase">Frequently Asked</h2>
+      </div>
+      <div className="max-w-3xl mx-auto space-y-4">
+        {FAQS.map(({ q, a }, i) => (
+          <div
+            key={i}
+            className="brutal-card bg-white overflow-hidden"
+          >
+            <button
+              onClick={() => setOpen(open === i ? null : i)}
+              className="w-full flex items-center justify-between p-5 sm:p-6 text-left gap-4"
+            >
+              <span className="font-black text-base sm:text-lg uppercase leading-tight">{q}</span>
+              <span
+                className="flex-shrink-0 w-8 h-8 brutal-border rounded-full flex items-center justify-center
+                           font-black text-lg transition-transform duration-300"
+                style={{
+                  backgroundColor: open === i ? 'var(--color-neo-yellow)' : 'var(--color-neo-bg)',
+                  transform: open === i ? 'rotate(45deg)' : 'rotate(0deg)',
+                }}
+              >
+                +
+              </span>
+            </button>
+            {open === i && (
+              <div className="px-5 sm:px-6 pb-5 sm:pb-6 border-t-[3px] border-black pt-4">
+                <p className="font-mono text-sm font-bold leading-relaxed text-black/70">{a}</p>
+              </div>
             )}
           </div>
-        )}
-      </main>
-
-      <footer className="relative border-t border-white/[0.04] mt-20 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center text-white/15 text-xs">
-          <p>osu! Cheat Detector — Support .osr langsung &amp; CSV dari analyzer.osu.report</p>
-          <p className="mt-1">Hanya untuk tujuan edukasi. Hasil analisis bukan keputusan final tentang status akun.</p>
-        </div>
-      </footer>
-    </div>
+        ))}
+      </div>
+    </section>
   );
 }

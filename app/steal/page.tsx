@@ -10,6 +10,7 @@ import { parseCSV } from '@/lib/analyzer';
 import { fetchBeatmapByMd5, downloadBeatmapOsu } from '@/lib/osuApi';
 import { compareSingleReplay, compareReplayBatch, ReplayCompareInput } from '@/lib/stealDetector';
 import { BeatmapInfo, LeaderboardScore, ReplayNote, SimilarityResult } from '@/lib/types';
+import { useReplay } from '@/lib/context/ReplayContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -19,10 +20,6 @@ async function parseStealFile(file: StealFile): Promise<ReplayCompareInput | nul
   try {
     if (file.type === 'osr' && file.buffer) {
       const { info, frames } = await parseOsrBuffer(file.buffer);
-      // We need the beatmap to do hit detection — but for steal checking
-      // we can do a lightweight compare using just cursor frames + timing
-      // The notes will be populated after beatmap fetch in the main flow.
-      // For now return frames only; notes will be added by the caller.
       return { label: file.name, notes: [], frames };
     } else if (file.type === 'csv' && file.content) {
       const { notes } = parseCSV(file.content);
@@ -47,6 +44,8 @@ type ScanState =
   | { phase: 'error'; message: string };
 
 export default function StealPage() {
+  const { sharedFile } = useReplay();
+
   // Mode toggle
   const [mode, setMode] = useState<Mode>('manual');
 
@@ -69,11 +68,23 @@ export default function StealPage() {
   const [autoErrors, setAutoErrors]       = useState<string[]>([]);
   const cancelRef = useRef(false);
 
+  // ── Pre-populate targetFile from shared context ──────────────────────────
+  useEffect(() => {
+    if (!sharedFile || targetFile) return; // don't overwrite if already set
+    if (sharedFile.type === 'osr' && sharedFile.buffer) {
+      setTargetFile({ name: sharedFile.name, type: 'osr', buffer: sharedFile.buffer });
+    } else if (sharedFile.type === 'csv' && sharedFile.content) {
+      setTargetFile({ name: sharedFile.name, type: 'csv', content: sharedFile.content });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedFile]);
+
   // ── Check login status on mount ─────────────────────────────────────────
   useEffect(() => {
     const match = document.cookie.match(/osu_user_session=([^;]+)/);
     setIsLoggedIn(!!match);
   }, []);
+
 
   // ── Parse target file when it changes ───────────────────────────────────
   useEffect(() => {
@@ -335,57 +346,50 @@ export default function StealPage() {
   const canAutoScan   = !autoScanning && !!targetInput && !!beatmapInfo && isLoggedIn;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      {/* Ambient blobs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-violet-600/8 blur-[120px]" />
-        <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] rounded-full bg-indigo-700/8 blur-[100px]" />
-        <div className="absolute top-[50%] left-[30%] w-[300px] h-[300px] rounded-full bg-pink-700/5 blur-[80px]" />
-      </div>
-
-      <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="min-h-screen text-[var(--color-neo-text)]">
+      <main className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Page hero */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-medium mb-6">
-            <Search className="w-3.5 h-3.5" />
-            Replay Steal Checker
+        <div className="text-center max-w-2xl mx-auto mb-10 font-mono">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white brutal-border shadow-[4px_4px_0_0_#000] mb-6">
+            <Search className="w-4 h-4 text-[var(--color-neo-blue)]" />
+            <span className="text-xs font-black uppercase tracking-widest">Steal Checker</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-4">
-            Deteksi{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tight uppercase mb-4">
+            Detect{' '}
+            <span className="bg-[var(--color-neo-blue)] text-white px-2 brutal-border shadow-[4px_4px_0_0_#000] inline-block">
               Replay Stealing
             </span>
           </h1>
-          <p className="text-white/40 text-base leading-relaxed">
-            Bandingkan satu replay target dengan replay lain.
-            Deteksi kemiripan aim, timing, holdtime, dan pola miss secara otomatis.
+          <p className="text-sm font-bold bg-white p-4 brutal-border shadow-[4px_4px_0_0_#000] leading-relaxed">
+            Compare a target replay against others. Detect aim trajectory similarity,
+            timing patterns, holdtime distribution, and miss correlation.
           </p>
         </div>
 
         {/* Mode Toggle */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-3 mb-8">
           <button
             onClick={() => setMode('manual')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold border-[3px] border-black rounded-xl shadow-[2px_2px_0_0_#000] transition-all ${
               mode === 'manual'
-                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40 shadow-md shadow-violet-500/10'
-                : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:text-white/60'
+                ? 'bg-[var(--color-neo-blue)] text-white'
+                : 'bg-white text-black hover:bg-[var(--color-neo-yellow)]'
             }`}
           >
             <Search className="w-3.5 h-3.5" />
-            Manual (Upload Sendiri)
+            Manual Upload
           </button>
           <button
             onClick={() => setMode('auto')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-bold border-[3px] border-black rounded-xl shadow-[2px_2px_0_0_#000] transition-all ${
               mode === 'auto'
-                ? 'bg-violet-500/20 text-violet-300 border border-violet-500/40 shadow-md shadow-violet-500/10'
-                : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:text-white/60'
+                ? 'bg-[var(--color-neo-blue)] text-white'
+                : 'bg-white text-black hover:bg-[var(--color-neo-yellow)]'
             }`}
           >
             <Zap className="w-3.5 h-3.5" />
-            Auto (Leaderboard Scan)
+            Auto Leaderboard Scan
           </button>
         </div>
 
@@ -393,15 +397,15 @@ export default function StealPage() {
         <div className="space-y-6">
 
           {/* Target file drop (always visible) */}
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-6">
+          <div className="brutal-card bg-white p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-white/70 uppercase tracking-wide">
+              <h2 className="text-sm font-black font-mono uppercase tracking-wide">
                 {mode === 'manual' ? 'Upload Replay' : 'Upload Target Replay'}
               </h2>
               {(targetFile || compFiles.length > 0 || scanState.phase !== 'idle') && (
                 <button
                   onClick={handleReset}
-                  className="flex items-center gap-1.5 text-xs text-white/30 hover:text-white/60 transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-bold brutal-btn px-3 py-1.5 bg-[var(--color-neo-bg)] hover:bg-[var(--color-neo-yellow)] transition-colors"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   Reset
@@ -537,13 +541,6 @@ export default function StealPage() {
 
         </div>
       </main>
-
-      <footer className="relative border-t border-white/[0.04] mt-20 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center text-white/15 text-xs">
-          <p>osu! Replay Steal Checker — Deteksi kemiripan replay menggunakan analisis statistik multi-aspek</p>
-          <p className="mt-1">Hanya untuk tujuan edukasi. Hasil analisis bukan keputusan final tentang status akun.</p>
-        </div>
-      </footer>
     </div>
   );
 }

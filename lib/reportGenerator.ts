@@ -165,7 +165,7 @@ function buildHeader(
       `| **Score**        | ${replayInfo.score.toLocaleString()} |`,
       `| **Max Combo**    | ${replayInfo.maxCombo}x |`,
       `| **Perfect FC**   | ${replayInfo.perfectCombo ? 'Yes ✅' : 'No'} |`,
-      `| **Timestamp**    | ${replayInfo.timestamp.toISOString().replace('T', ' ').slice(0, 19)} UTC |`,
+      `| **Timestamp**    | ${(replayInfo.timestamp instanceof Date ? replayInfo.timestamp : new Date(replayInfo.timestamp as unknown as string)).toISOString().replace('T', ' ').slice(0, 19)} UTC |`,
     ] : []),
     ``,
   ].join('\n');
