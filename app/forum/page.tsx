@@ -54,7 +54,7 @@ export default function ForumPage() {
   };
 
   return (
-    <main className="max-w-4xl mx-auto px-4 sm:px-6 pb-20 pt-2">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-2">
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>

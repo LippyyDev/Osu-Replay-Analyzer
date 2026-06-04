@@ -49,35 +49,32 @@ export default function RelaxPage() {
       const { info, frames } = await parseOsrBuffer(buffer);
 
       // ── Early deduplication: check if this score ID already has a complete report ──
-      // Uses a 1.5s timeout so a slow/cold Supabase never blocks the full analysis.
       const rawScoreId = info.onlineScoreId;
       const scoreIdStr = rawScoreId != null ? rawScoreId.toString() : '0';
-      const hasRealScoreId = scoreIdStr && scoreIdStr !== '0';
+      const hasRealScoreId = scoreIdStr && scoreIdStr !== '0' && scoreIdStr !== '-1';
 
       if (hasRealScoreId) {
+        setLoadingStep('Checking for existing analysis...');
         try {
-          const controller = new AbortController();
-          const timeoutId  = setTimeout(() => controller.abort(), 1500); // 1.5s max
-
-          const lookupRes = await fetch(
-            `/api/report/lookup?score_id=${scoreIdStr}`,
-            { signal: controller.signal }
-          );
-          clearTimeout(timeoutId);
-
+          const lookupRes = await fetch(`/api/report/lookup?score_id=${scoreIdStr}`);
           if (lookupRes.ok) {
             const { found, id, has_csv } = await lookupRes.json();
             // Only skip full analysis if the stored report already has csvContent
+            // (has_csv = false means it's an old report that was saved without csvContent)
             if (found && id && has_csv) {
-              console.log('[RelaxPage] Complete existing report found:', scoreIdStr, '→', id);
+              console.log('[RelaxPage] Complete existing report found for score_id:', scoreIdStr, '→', id);
               router.push(`/report/${id}`);
               return;
             }
+            if (found && id && !has_csv) {
+              console.log('[RelaxPage] Old report found (no csv) for score_id:', scoreIdStr, ' — running full analysis to upgrade...');
+            }
           }
         } catch {
-          // Lookup timed out or failed — proceed with full analysis normally
+          // Lookup failed — proceed with full analysis normally
         }
       }
+
 
       setLoadingStep(`Fetching beatmap data (${info.beatmapMd5.slice(0, 8)}...)`);
       const beatmapInfo = await fetchBeatmapByMd5(info.beatmapMd5);
@@ -95,8 +92,11 @@ export default function RelaxPage() {
       const beatmapSpinners = beatmap.hitObjects.filter((o) => o.isSpinner).length;
       const computed = computeOsrStats(notes, frames, info.mods, beatmapCircles, beatmapSliders, beatmapSpinners);
 
-      setLoadingStep(`Querying player profile: ${info.playerName}`);
-      const userProfile = await fetchUserProfile(info.playerName);
+      // Skip profile fetch for "Guest" — local/offline replays use this placeholder name.
+      // Fetching it would return a random osu! user named "Guest" which is unrelated.
+      const isGuestPlayer = info.playerName.trim().toLowerCase() === 'guest';
+      setLoadingStep(isGuestPlayer ? 'Skipping profile (Guest replay)...' : `Querying player profile: ${info.playerName}`);
+      const userProfile = isGuestPlayer ? null : await fetchUserProfile(info.playerName);
 
       setLoadingStep('Running AI heuristic analysis, calculating probabilities...');
       const { result, warnings } = analyzeReplay(csvContent, fileName);

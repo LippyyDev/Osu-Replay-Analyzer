@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     const hasRealScoreId =
       online_score_id &&
       online_score_id !== '0' &&
+      online_score_id !== '-1' &&
       online_score_id !== 'null' &&
       online_score_id !== '';
 

@@ -12,6 +12,8 @@ import { formatDistanceToNow } from '@/lib/utils/timeFormat';
 import { type PostMeta } from '@/components/forum/PostCard';
 import Link from 'next/link';
 import { ArrowLeft, Trash2, Tag } from 'lucide-react';
+import { linkify, extractReportUrls } from '@/lib/linkify';
+import ReportLinkPreview from '@/components/forum/ReportLinkPreview';
 
 export default function ThreadPage() {
   const { id }  = useParams<{ id: string }>();
@@ -124,7 +126,7 @@ export default function ThreadPage() {
   const canDelete = user && (user.sub === post.user_id || user.is_admin);
 
   return (
-    <main className="max-w-4xl mx-auto px-4 sm:px-6 pb-20 pt-2">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-2">
       {/* Back */}
       <Link href="/forum" className="inline-flex items-center gap-2 text-sm font-mono font-bold mb-6 hover:text-[var(--color-neo-pink)] transition-colors">
         <ArrowLeft className="w-4 h-4" /> Back to forum
@@ -186,10 +188,15 @@ export default function ThreadPage() {
 
             {/* Body */}
             {post.body && (
-              <div className="prose prose-sm max-w-none font-mono text-gray-700 whitespace-pre-wrap mb-6 leading-relaxed">
-                {post.body}
+              <div className="font-mono text-gray-700 whitespace-pre-wrap mb-4 leading-relaxed text-sm">
+                {linkify(post.body)}
               </div>
             )}
+
+            {/* Report link preview cards — auto-rendered for every /report/ URL in body */}
+            {post.body && extractReportUrls(post.body).map(url => (
+              <ReportLinkPreview key={url} url={url} />
+            ))}
 
             {/* Report Embed */}
             {post.report_data && post.report_type && (

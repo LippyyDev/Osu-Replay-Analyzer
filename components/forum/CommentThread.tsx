@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { formatDistanceToNow } from '@/lib/utils/timeFormat';
 import { Trash2, Reply } from 'lucide-react';
+import { linkify } from '@/lib/linkify';
 
 interface CommentUser {
   username: string;
@@ -97,7 +98,7 @@ function CommentItem({
         </div>
 
         {/* Body */}
-        <p className="text-sm font-mono text-gray-700 whitespace-pre-wrap">{comment.body}</p>
+        <p className="text-sm font-mono text-gray-700 whitespace-pre-wrap">{linkify(comment.body)}</p>
 
         {/* Actions */}
         <div className="flex items-center gap-3 mt-2">

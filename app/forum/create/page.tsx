@@ -64,12 +64,12 @@ export default function CreatePostPage() {
   };
 
   if (loading) {
-    return <div className="max-w-2xl mx-auto px-4 py-20 text-center font-mono animate-pulse">Loading...</div>;
+    return <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center font-mono animate-pulse">Loading...</div>;
   }
 
   if (!user) {
     return (
-      <main className="max-w-2xl mx-auto px-4 py-20 text-center">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
         <p className="text-xl font-black font-mono mb-6">You need to be logged in to post</p>
         <button
           onClick={() => setShowAuth(true)}
@@ -83,7 +83,8 @@ export default function CreatePostPage() {
   }
 
   return (
-    <main className="max-w-2xl mx-auto px-4 sm:px-6 pb-20 pt-2">
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 pt-2">
+      <div className="max-w-2xl mx-auto">
       <h1 className="text-2xl font-black font-mono mb-6">CREATE A POST</h1>
 
       <div className="bg-white border-[3px] border-black rounded-2xl shadow-[6px_6px_0_0_#000] p-6 space-y-5">
@@ -173,6 +174,7 @@ export default function CreatePostPage() {
       </div>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      </div>
     </main>
   );
 }

@@ -8,7 +8,7 @@ import { getSupabaseAdmin } from '@/lib/supabase/server';
 export async function GET(req: NextRequest) {
   const scoreId = req.nextUrl.searchParams.get('score_id');
 
-  if (!scoreId || scoreId === '0' || scoreId === 'null' || scoreId === '') {
+  if (!scoreId || scoreId === '0' || scoreId === '-1' || scoreId === 'null' || scoreId === '') {
     return NextResponse.json({ error: 'Invalid score_id' }, { status: 400 });
   }
 
